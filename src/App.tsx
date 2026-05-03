@@ -28,6 +28,7 @@ import { Module } from "@/src/types";
 
 // Module Components
 import { AIEngine } from "./components/AIEngine";
+import { CustomDashboard } from "./components/CustomDashboard";
 import { MarketingSuite } from "./components/MarketingSuite";
 import { NavigationSystem } from "./components/NavigationSystem";
 import { InstantBuilder } from "./components/InstantBuilder";
@@ -36,139 +37,6 @@ import { DeploymentHub } from "./components/DeploymentHub";
 import { AppSettings } from "./components/AppSettings";
 import { SalesIntelligence } from "./components/SalesIntelligence";
 
-const Dashboard = () => (
-  <div className="space-y-8 p-8">
-    <header className="flex justify-between items-end">
-      <div>
-        <h1 className="text-4xl font-display font-extrabold tracking-tight neon-text">NEXUS ONE</h1>
-        <p className="text-nexus-text-dim mt-2">System Status: <span className="text-nexus-accent">OPTIMAL</span></p>
-      </div>
-      <div className="flex gap-4">
-        <div className="glass px-4 py-2 rounded-lg flex items-center gap-2">
-          <Zap className="w-4 h-4 text-nexus-accent" />
-          <span className="text-xs font-mono">AI CORE: 98%</span>
-        </div>
-        <div className="glass px-4 py-2 rounded-lg flex items-center gap-2">
-          <Globe className="w-4 h-4 text-nexus-accent" />
-          <span className="text-xs font-mono">NETWORK: ACTIVE</span>
-        </div>
-      </div>
-    </header>
-
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {[
-        { 
-          label: "Active Campaigns", 
-          value: "12", 
-          icon: TrendingUp, 
-          color: "text-blue-400",
-          tooltip: "Total number of ongoing marketing initiatives currently running in the neural network."
-        },
-        { 
-          label: "Social Reach", 
-          value: "1.2M", 
-          icon: Share2, 
-          color: "text-purple-400",
-          tooltip: "Aggregate impressions and interactions across all linked social matrix nodes."
-        },
-        { 
-          label: "AI Tasks Executed", 
-          value: "8,432", 
-          icon: Cpu, 
-          color: "text-cyan-400",
-          tooltip: "Total volume of computational operations processed by the NEXUS core in the current cycle."
-        },
-      ].map((stat, i) => (
-        <motion.div 
-          key={i}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.1 }}
-          className="glass p-6 rounded-2xl relative overflow-hidden group cursor-help"
-        >
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <stat.icon className="w-16 h-16" />
-          </div>
-          <p className="text-nexus-text-dim text-sm font-medium uppercase tracking-wider">{stat.label}</p>
-          <h3 className="text-3xl font-display font-bold mt-2">{stat.value}</h3>
-          <div className="mt-4 flex items-center gap-2 text-xs text-nexus-accent">
-            <TrendingUp className="w-3 h-3" />
-            <span>+12.5% from last cycle</span>
-          </div>
-
-          {/* Hover Tooltip */}
-          <div className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none bg-nexus-bg/95 backdrop-blur-md p-6 flex items-center justify-center text-center">
-            <p className="text-xs leading-relaxed text-nexus-text-dim">{stat.tooltip}</p>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="glass p-6 rounded-2xl">
-        <h3 className="text-lg font-display font-semibold mb-4 flex items-center gap-2">
-          <Cpu className="w-5 h-5 text-nexus-accent" />
-          Neural Activity
-        </h3>
-        <div className="space-y-4">
-          {[
-            { text: "Neural optimization for 'Sigma' complete", status: "completed" },
-            { text: "Optimizing marketing strategy for 'Project Alpha'", status: "active" },
-            { text: "Generating social media assets for Instagram", status: "active" },
-            { text: "Market trend synthesis finalized", status: "completed" }
-          ].map((task, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 group">
-              <div className="flex-shrink-0">
-                {task.status === "completed" ? (
-                  <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ 
-                      type: "spring", 
-                      stiffness: 260, 
-                      damping: 20,
-                      delay: i * 0.2 
-                    }}
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-green-400 neon-glow-green" />
-                  </motion.div>
-                ) : (
-                  <div className="w-2 h-2 rounded-full bg-nexus-accent animate-pulse" />
-                )}
-              </div>
-              <span className={cn(
-                "text-sm transition-colors",
-                task.status === "completed" ? "text-nexus-text-dim/60 line-through decoration-nexus-accent/30" : "text-nexus-text-dim"
-              )}>
-                {task.text}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="glass p-6 rounded-2xl">
-        <h3 className="text-lg font-display font-semibold mb-4 flex items-center gap-2">
-          <Cloud className="w-5 h-5 text-nexus-accent" />
-          Environmental Intelligence
-        </h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-4xl font-display font-bold">24°C</p>
-            <p className="text-nexus-text-dim">San Francisco, CA</p>
-          </div>
-          <div className="text-right">
-            <p className="text-nexus-accent font-mono">CLEAR SKIES</p>
-            <p className="text-xs text-nexus-text-dim">Visibility: 10km</p>
-          </div>
-        </div>
-        <div className="mt-6 h-24 bg-gradient-to-r from-nexus-accent/10 to-transparent rounded-xl border border-nexus-accent/20 flex items-center justify-center">
-          <span className="text-xs font-mono text-nexus-accent/60">GEOSPATIAL DATA STREAM ACTIVE</span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
 
 const SmartDocs = () => (
   <div className="p-8 space-y-8 max-w-5xl mx-auto">
@@ -343,7 +211,7 @@ export default function App() {
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="h-full"
             >
-              {activeModule === Module.DASHBOARD && <Dashboard />}
+              {activeModule === Module.DASHBOARD && <CustomDashboard />}
               {activeModule === Module.AI_ENGINE && <AIEngine />}
               {activeModule === Module.MARKETING && <MarketingSuite />}
               {activeModule === Module.NAVIGATION && <NavigationSystem />}
