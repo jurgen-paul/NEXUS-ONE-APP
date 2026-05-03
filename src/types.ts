@@ -6,8 +6,10 @@ export enum Module {
   NAVIGATION = "NAVIGATION",
   CREATOR = "CREATOR",
   DOCS = "DOCS",
+  DEPLOYMENT = "DEPLOYMENT",
   COMMUNICATION = "COMMUNICATION",
   SALES = "SALES",
+  SETTINGS = "SETTINGS",
 }
 
 export interface NavItem {

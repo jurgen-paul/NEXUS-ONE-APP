@@ -18,6 +18,7 @@ import {
   Globe,
   Cloud,
   ShieldCheck,
+  CheckCircle2,
   FilePlus,
   Download,
   Eye
@@ -31,6 +32,9 @@ import { MarketingSuite } from "./components/MarketingSuite";
 import { NavigationSystem } from "./components/NavigationSystem";
 import { InstantBuilder } from "./components/InstantBuilder";
 import { SocialControl } from "./components/SocialControl";
+import { DeploymentHub } from "./components/DeploymentHub";
+import { AppSettings } from "./components/AppSettings";
+import { SalesIntelligence } from "./components/SalesIntelligence";
 
 const Dashboard = () => (
   <div className="space-y-8 p-8">
@@ -53,16 +57,34 @@ const Dashboard = () => (
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       {[
-        { label: "Active Campaigns", value: "12", icon: TrendingUp, color: "text-blue-400" },
-        { label: "Social Reach", value: "1.2M", icon: Share2, color: "text-purple-400" },
-        { label: "AI Tasks Executed", value: "8,432", icon: Cpu, color: "text-cyan-400" },
+        { 
+          label: "Active Campaigns", 
+          value: "12", 
+          icon: TrendingUp, 
+          color: "text-blue-400",
+          tooltip: "Total number of ongoing marketing initiatives currently running in the neural network."
+        },
+        { 
+          label: "Social Reach", 
+          value: "1.2M", 
+          icon: Share2, 
+          color: "text-purple-400",
+          tooltip: "Aggregate impressions and interactions across all linked social matrix nodes."
+        },
+        { 
+          label: "AI Tasks Executed", 
+          value: "8,432", 
+          icon: Cpu, 
+          color: "text-cyan-400",
+          tooltip: "Total volume of computational operations processed by the NEXUS core in the current cycle."
+        },
       ].map((stat, i) => (
         <motion.div 
           key={i}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.1 }}
-          className="glass p-6 rounded-2xl relative overflow-hidden group"
+          className="glass p-6 rounded-2xl relative overflow-hidden group cursor-help"
         >
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <stat.icon className="w-16 h-16" />
@@ -72,6 +94,11 @@ const Dashboard = () => (
           <div className="mt-4 flex items-center gap-2 text-xs text-nexus-accent">
             <TrendingUp className="w-3 h-3" />
             <span>+12.5% from last cycle</span>
+          </div>
+
+          {/* Hover Tooltip */}
+          <div className="absolute inset-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none bg-nexus-bg/95 backdrop-blur-md p-6 flex items-center justify-center text-center">
+            <p className="text-xs leading-relaxed text-nexus-text-dim">{stat.tooltip}</p>
           </div>
         </motion.div>
       ))}
@@ -85,14 +112,36 @@ const Dashboard = () => (
         </h3>
         <div className="space-y-4">
           {[
-            "Optimizing marketing strategy for 'Project Alpha'",
-            "Generating social media assets for Instagram",
-            "Analyzing real-time market trends in Tech sector",
-            "Auto-scheduling 15 posts across 4 platforms"
+            { text: "Neural optimization for 'Sigma' complete", status: "completed" },
+            { text: "Optimizing marketing strategy for 'Project Alpha'", status: "active" },
+            { text: "Generating social media assets for Instagram", status: "active" },
+            { text: "Market trend synthesis finalized", status: "completed" }
           ].map((task, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5">
-              <div className="w-2 h-2 rounded-full bg-nexus-accent animate-pulse" />
-              <span className="text-sm text-nexus-text-dim">{task}</span>
+            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 group">
+              <div className="flex-shrink-0">
+                {task.status === "completed" ? (
+                  <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ 
+                      type: "spring", 
+                      stiffness: 260, 
+                      damping: 20,
+                      delay: i * 0.2 
+                    }}
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-green-400 neon-glow-green" />
+                  </motion.div>
+                ) : (
+                  <div className="w-2 h-2 rounded-full bg-nexus-accent animate-pulse" />
+                )}
+              </div>
+              <span className={cn(
+                "text-sm transition-colors",
+                task.status === "completed" ? "text-nexus-text-dim/60 line-through decoration-nexus-accent/30" : "text-nexus-text-dim"
+              )}>
+                {task.text}
+              </span>
             </div>
           ))}
         </div>
@@ -153,6 +202,9 @@ const SmartDocs = () => (
                 <Eye className="w-4 h-4" />
               </button>
               <button className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-colors">
+                <Cloud className="w-4 h-4" />
+              </button>
+              <button className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-colors">
                 <Download className="w-4 h-4" />
               </button>
             </div>
@@ -193,6 +245,7 @@ export default function App() {
     { id: Module.MARKETING, label: "Marketing Suite", icon: TrendingUp },
     { id: Module.NAVIGATION, label: "Navigation Sys", icon: Navigation },
     { id: Module.CREATOR, label: "Instant Builder", icon: BookOpen },
+    { id: Module.DEPLOYMENT, label: "Deployment Hub", icon: Cloud },
     { id: Module.DOCS, label: "Smart Forms", icon: FileText },
     { id: Module.COMMUNICATION, label: "Mail Hub", icon: Mail },
     { id: Module.SALES, label: "Sales Intelligence", icon: BarChart3 },
@@ -229,8 +282,16 @@ export default function App() {
         </nav>
 
         <div className="p-4 border-t border-nexus-border">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-nexus-text-dim hover:bg-white/5 hover:text-white transition-all">
-            <Settings className="w-5 h-5" />
+          <button 
+            onClick={() => setActiveModule(Module.SETTINGS)}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300",
+              activeModule === Module.SETTINGS 
+                ? "bg-nexus-accent/10 text-nexus-accent" 
+                : "text-nexus-text-dim hover:bg-white/5 hover:text-white"
+            )}
+          >
+            <Settings className={cn("w-5 h-5", activeModule === Module.SETTINGS && "neon-glow")} />
             {isSidebarOpen && <span className="text-sm font-medium">Settings</span>}
           </button>
           <div className="mt-4 flex items-center gap-3 px-4 py-2">
@@ -289,8 +350,11 @@ export default function App() {
               {activeModule === Module.CREATOR && <InstantBuilder />}
               {activeModule === Module.SOCIAL && <SocialControl />}
               {activeModule === Module.DOCS && <SmartDocs />}
+              {activeModule === Module.DEPLOYMENT && <DeploymentHub />}
+              {activeModule === Module.SALES && <SalesIntelligence />}
+              {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>

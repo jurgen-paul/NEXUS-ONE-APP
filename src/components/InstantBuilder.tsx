@@ -1,16 +1,25 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { BookOpen, Globe, Wand2, Layout, Type, Image as ImageIcon, Loader2, CheckCircle2, ArrowRight, Cpu } from "lucide-react";
+import { BookOpen, Globe, Wand2, Layout, Type, Image as ImageIcon, Loader2, CheckCircle2, ArrowRight, Cpu, ExternalLink, Monitor, Smartphone, Tablet, Trash2, Plus, GripVertical, Palette, Layers, Save, RefreshCcw, Zap } from "lucide-react";
 import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { cn } from "@/src/lib/utils";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 type CreatorType = "BOOK" | "WEBSITE" | "LANDING_PAGE";
+type PreviewMode = "desktop" | "tablet" | "mobile";
+type StylePreset = "Cyberpunk" | "Minimalist" | "Corporate" | "Futuristic";
+
+interface Section {
+  id: string;
+  heading: string;
+  content: string;
+  type?: string;
+}
 
 interface GeneratedContent {
   title: string;
-  sections: { heading: string; content: string }[];
+  sections: Section[];
   branding: { primaryColor: string; font: string };
 }
 
@@ -18,7 +27,11 @@ export const InstantBuilder = () => {
   const [type, setType] = useState<CreatorType>("WEBSITE");
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploymentStatus, setDeploymentStatus] = useState<"IDLE" | "PREPARING" | "UPLOADING" | "LIVE">("IDLE");
   const [result, setResult] = useState<GeneratedContent | null>(null);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("desktop");
+  const [stylePreset, setStylePreset] = useState<StylePreset>("Futuristic");
 
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
@@ -29,7 +42,8 @@ export const InstantBuilder = () => {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Generate a detailed structure for a ${type} based on this prompt: "${prompt}". 
-        Include a catchy title, 3-5 main sections with content summaries, and branding suggestions (primary color hex and font style).`,
+        The style should be ${stylePreset}.
+        Include a catchy title, 4 main sections with content summaries, and branding suggestions (primary color hex and font style).`,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -62,12 +76,66 @@ export const InstantBuilder = () => {
       });
 
       const data = JSON.parse(response.text);
-      setResult(data);
+      // Inject IDs for internal management
+      const content = {
+        ...data,
+        sections: data.sections.map((s: any, idx: number) => ({
+          ...s,
+          id: Math.random().toString(36).substr(2, 9)
+        }))
+      };
+      setResult(content);
     } catch (error) {
       console.error("Generation Error:", error);
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const updateSection = (id: string, updates: Partial<Section>) => {
+    if (!result) return;
+    setResult({
+      ...result,
+      sections: result.sections.map(s => s.id === id ? { ...s, ...updates } : s)
+    });
+  };
+
+  const removeSection = (id: string) => {
+    if (!result) return;
+    setResult({
+      ...result,
+      sections: result.sections.filter(s => s.id !== id)
+    });
+  };
+
+  const addSection = () => {
+    if (!result) return;
+    const newSection: Section = {
+      id: Math.random().toString(36).substr(2, 9),
+      heading: "New Section",
+      content: "Add your neural content summary here..."
+    };
+    setResult({
+      ...result,
+      sections: [...result.sections, newSection]
+    });
+  };
+
+  const handleDeploy = async () => {
+    if (!result || isDeploying) return;
+    setIsDeploying(true);
+    setDeploymentStatus("PREPARING");
+    
+    // Simulated deployment sequence
+    await new Promise(r => setTimeout(r, 1500));
+    setDeploymentStatus("UPLOADING");
+    await new Promise(r => setTimeout(r, 2000));
+    setDeploymentStatus("LIVE");
+    
+    setTimeout(() => {
+      setIsDeploying(false);
+      setDeploymentStatus("IDLE");
+    }, 3000);
   };
 
   return (
@@ -102,6 +170,35 @@ export const InstantBuilder = () => {
                     <span className="text-sm font-medium">{item.label}</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest mb-3 block">Style Preset</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "Futuristic", icon: Wand2 },
+                  { id: "Minimalist", icon: Monitor },
+                  { id: "Cyberpunk", icon: Zap }, // I need to make sure Zap is imported or used if available
+                  { id: "Corporate", icon: Globe },
+                ].map((item) => {
+                  const Icon = item.id === "Cyberpunk" ? RefreshCcw : item.icon; // Using RefreshCcw as placeholder if Zap is not there, but I'll use Palette
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setStylePreset(item.id as StylePreset)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-bold uppercase transition-all",
+                        stylePreset === item.id 
+                          ? "bg-nexus-accent/10 border-nexus-accent text-nexus-accent" 
+                          : "bg-white/5 border-white/5 text-nexus-text-dim hover:border-white/20"
+                      )}
+                    >
+                      <Palette className="w-3 h-3" />
+                      {item.id}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -156,7 +253,41 @@ export const InstantBuilder = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
+          {/* Preview Controls */}
+          {result && (
+            <div className="flex items-center justify-between glass px-4 py-2 rounded-2xl border border-white/5">
+              <div className="flex gap-2">
+                {[
+                  { id: "desktop", icon: Monitor },
+                  { id: "tablet", icon: Tablet },
+                  { id: "mobile", icon: Smartphone },
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => setPreviewMode(mode.id as PreviewMode)}
+                    className={cn(
+                      "p-2 rounded-lg transition-all",
+                      previewMode === mode.id ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:bg-white/5"
+                    )}
+                  >
+                    <mode.icon className="w-4 h-4" />
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: result.branding.primaryColor }} />
+                  <span className="text-[10px] font-mono text-nexus-text-dim uppercase">{result.branding.primaryColor}</span>
+                </div>
+                <button className="flex items-center gap-2 text-[10px] font-bold text-nexus-text-dim hover:text-white transition-colors">
+                  <RefreshCcw className="w-3 h-3" />
+                  REGENERATE STYLE
+                </button>
+              </div>
+            </div>
+          )}
+
           <AnimatePresence mode="wait">
             {!result && !isGenerating ? (
               <motion.div 
@@ -202,9 +333,13 @@ export const InstantBuilder = () => {
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass rounded-3xl overflow-hidden flex flex-col h-full"
+                style={{ 
+                  width: previewMode === "desktop" ? "100%" : previewMode === "tablet" ? "768px" : "375px",
+                  margin: "0 auto"
+                }}
+                className="glass rounded-3xl overflow-hidden flex flex-col h-[700px] transition-all duration-500"
               >
-                <div className="p-8 border-b border-nexus-border bg-gradient-to-r from-nexus-accent/5 to-transparent">
+                <div className="p-8 border-b border-nexus-border bg-gradient-to-r from-nexus-accent/5 to-transparent sticky top-0 bg-nexus-bg z-10">
                   <div className="flex justify-between items-start mb-4">
                     <span className="px-3 py-1 rounded-full bg-nexus-accent/10 border border-nexus-accent/30 text-[10px] font-bold text-nexus-accent uppercase tracking-widest">
                       {type} GENERATED
@@ -214,39 +349,117 @@ export const InstantBuilder = () => {
                       <span className="text-[10px] font-mono text-nexus-text-dim">{result?.branding.font}</span>
                     </div>
                   </div>
-                  <h3 className="text-4xl font-display font-extrabold tracking-tight">{result?.title}</h3>
+                  <h3 className="text-4xl font-display font-extrabold tracking-tight" contentEditable onBlur={(e) => setResult({...result!, title: e.currentTarget.textContent || ""})}>
+                    {result?.title}
+                  </h3>
                 </div>
 
-                <div className="flex-1 p-8 overflow-y-auto space-y-8">
+                <div className="flex-1 p-8 overflow-y-auto space-y-12 scrollbar-none">
                   {result?.sections.map((section, i) => (
-                    <div key={i} className="space-y-3">
-                      <h4 className="text-lg font-display font-bold text-nexus-accent flex items-center gap-2">
-                        <span className="text-xs font-mono opacity-50">0{i+1}</span>
-                        {section.heading}
-                      </h4>
-                      <p className="text-sm text-nexus-text-dim leading-relaxed">
-                        {section.content}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                    <motion.div 
+                      key={section.id} 
+                      className="group relative space-y-4 p-6 rounded-2xl border border-white/5 hover:border-nexus-accent/20 transition-all hover:bg-white/5"
+                    >
+                      {/* Section Controls */}
+                      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => removeSection(section.id)}
+                          className="p-1.5 rounded-lg bg-black/50 text-red-400 hover:bg-red-500/20 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button className="p-1.5 rounded-lg bg-black/50 text-nexus-text-dim hover:text-white transition-colors cursor-grab">
+                          <GripVertical className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
-                <div className="p-6 bg-white/5 border-t border-nexus-border flex justify-between items-center">
-                  <div className="flex gap-4">
-                    <button className="flex items-center gap-2 text-xs font-bold text-nexus-text-dim hover:text-white transition-colors">
-                      <Type className="w-4 h-4" />
-                      EDIT TEXT
-                    </button>
-                    <button className="flex items-center gap-2 text-xs font-bold text-nexus-text-dim hover:text-white transition-colors">
-                      <ImageIcon className="w-4 h-4" />
-                      ADD IMAGES
-                    </button>
-                  </div>
-                  <button className="px-6 py-2 bg-white text-black font-bold rounded-xl flex items-center gap-2 hover:bg-nexus-accent transition-all">
-                    DEPLOY ASSET
-                    <ArrowRight className="w-4 h-4" />
+                      <div className="space-y-3">
+                        <h4 
+                          className="text-xl font-display font-bold text-nexus-accent outline-none"
+                          contentEditable
+                          onBlur={(e) => updateSection(section.id, { heading: e.currentTarget.textContent || "" })}
+                        >
+                          {section.heading}
+                        </h4>
+                        <div 
+                          className="text-sm text-nexus-text-dim leading-relaxed outline-none"
+                          contentEditable
+                          onBlur={(e) => updateSection(section.id, { content: e.currentTarget.textContent || "" })}
+                        >
+                          {section.content}
+                        </div>
+                        <button className="flex items-center gap-2 text-[9px] font-bold text-nexus-accent hover:text-white transition-colors bg-nexus-accent/5 px-2 py-1 rounded-md border border-nexus-accent/20">
+                          <ImageIcon className="w-3 h-3" />
+                          SUGGEST NEURAL IMAGE
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  <button 
+                    onClick={addSection}
+                    className="w-full py-6 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center gap-2 text-nexus-text-dim hover:border-nexus-accent/50 hover:text-nexus-accent transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Plus className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-widest">Add Neural Component</span>
                   </button>
                 </div>
+
+                <div className="p-6 bg-white/5 border-t border-nexus-border flex justify-between items-center shrink-0">
+                  <div className="flex gap-4">
+                    <button className="flex items-center gap-2 text-xs font-bold text-nexus-text-dim hover:text-white transition-colors">
+                      <Save className="w-4 h-4" />
+                      SAVE DRAFT
+                    </button>
+                    <button className="flex items-center gap-2 text-xs font-bold text-nexus-text-dim hover:text-white transition-colors">
+                      <Layers className="w-4 h-4" />
+                      COMPONENT LIST
+                    </button>
+                  </div>
+                  <button 
+                    onClick={handleDeploy}
+                    disabled={isDeploying}
+                    className="px-6 py-2 bg-white text-black font-bold rounded-xl flex items-center gap-2 hover:bg-nexus-accent transition-all disabled:opacity-50 min-w-[160px] justify-center"
+                  >
+                    {isDeploying ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {deploymentStatus === "PREPARING" && "PREPARING..."}
+                        {deploymentStatus === "UPLOADING" && "UPLOADING..."}
+                        {deploymentStatus === "LIVE" && "LIVE!"}
+                      </>
+                    ) : (
+                      <>
+                        DEPLOY ASSET
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <AnimatePresence>
+                  {deploymentStatus === "LIVE" && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="bg-green-500/10 border-t border-green-500/20 p-4 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500" />
+                        <div>
+                          <p className="text-xs font-bold text-green-500 uppercase tracking-widest">Deployment Successful</p>
+                          <p className="text-[10px] text-nexus-text-dim">Your {type.toLowerCase()} is now live on the global edge network.</p>
+                        </div>
+                      </div>
+                      <button className="flex items-center gap-2 text-[10px] font-bold text-white hover:text-nexus-accent transition-colors">
+                        VIEW LIVE <ExternalLink className="w-3 h-3" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>

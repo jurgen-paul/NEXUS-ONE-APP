@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Share2, 
@@ -27,7 +27,19 @@ import {
   Sparkles,
   Loader2,
   Settings2,
-  Maximize2
+  Maximize2,
+  Github,
+  Youtube,
+  Link2,
+  Play,
+  Save,
+  Bookmark,
+  History,
+  Activity,
+  Type,
+  AlignLeft,
+  Monitor,
+  Shield
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { GoogleGenAI } from "@google/genai";
@@ -48,17 +60,19 @@ interface ScheduledPost {
   id: string;
   time: string;
   title: string;
-  platforms: any[];
+  platformIds: string[];
   status: "Ready" | "AI Generating" | "Scheduled" | "Draft";
   media?: { url: string; type: "image" | "video" }[];
   platformConfigs?: Record<string, any>;
 }
 
 const PLATFORMS = [
-  { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-500" },
-  { id: "twitter", name: "Twitter / X", icon: Twitter, color: "text-blue-400" },
-  { id: "linkedin", name: "LinkedIn", icon: Linkedin, color: "text-blue-600" },
-  { id: "facebook", name: "Facebook", icon: Facebook, color: "text-blue-500" },
+  { id: "instagram", name: "Instagram", icon: Instagram, color: "text-pink-500", provider: "instagram" },
+  { id: "twitter", name: "Twitter / X", icon: Twitter, color: "text-blue-400", provider: "twitter" },
+  { id: "linkedin", name: "LinkedIn", icon: Linkedin, color: "text-blue-600", provider: "linkedin" },
+  { id: "github", name: "GitHub", icon: Github, color: "text-white", provider: "github" },
+  { id: "facebook", name: "Facebook", icon: Facebook, color: "text-blue-500", provider: "facebook" },
+  { id: "youtube", name: "YouTube", icon: Youtube, color: "text-red-500", provider: "google" },
 ];
 
 const ANALYTICS_DATA = [
@@ -71,14 +85,532 @@ const ANALYTICS_DATA = [
   { date: "Apr 07", reach: 8500, engagement: 2800, growth: 350 },
 ];
 
+const LIVE_ANALYTICS_DATA = [
+  { time: "00:00", viewers: 120, retention: 95 },
+  { time: "05:00", viewers: 450, retention: 92 },
+  { time: "10:00", viewers: 890, retention: 88 },
+  { time: "15:00", viewers: 1200, retention: 85 },
+  { time: "20:00", viewers: 1560, retention: 82 },
+  { time: "25:00", viewers: 1420, retention: 80 },
+  { time: "30:00", viewers: 1840, retention: 78 },
+  { time: "35:00", viewers: 1650, retention: 75 },
+  { time: "40:00", viewers: 1500, retention: 72 },
+];
+
 export const SocialControl = () => {
-  const [activeTab, setActiveTab] = useState<"control" | "analytics">("control");
+  const [activeTab, setActiveTab] = useState<"control" | "analytics" | "generator" | "presets">("control");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [posts, setPosts] = useState<ScheduledPost[]>([
-    { id: "1", time: "Today, 18:00", title: "Product Launch Teaser", platforms: [Instagram, Twitter], status: "Ready" },
-    { id: "2", time: "Tomorrow, 10:00", title: "Customer Success Story", platforms: [Linkedin, Facebook], status: "AI Generating" },
-    { id: "3", time: "Monday, 09:00", title: "Weekly Tech Roundup", platforms: [Twitter, Linkedin], status: "Scheduled" },
-  ]);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
+  const [isConnecting, setIsConnecting] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<{provider: string, message: string} | null>(null);
+  const [showLinkedInDiagnostic, setShowLinkedInDiagnostic] = useState(false);
+  const [showFacebookDiagnostic, setShowFacebookDiagnostic] = useState(false);
+  const [showInstagramDiagnostic, setShowInstagramDiagnostic] = useState(false);
+  const [tokens, setTokens] = useState<Record<string, any>>({});
+  const [isInitiatingLive, setIsInitiatingLive] = useState(false);
+  const [postFilter, setPostFilter] = useState<"All" | "Scheduled" | "Draft">("All");
+
+  const [presets, setPresets] = useState<{ name: string; configs: Record<string, any>; platforms: string[] }[]>(() => {
+    const saved = localStorage.getItem("nexus_presets");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [platformPresets, setPlatformPresets] = useState<Record<string, {name: string, config: any}[]>>(() => {
+    const saved = localStorage.getItem("nexus_platform_presets");
+    return saved ? JSON.parse(saved) : {
+      youtube: [],
+      linkedin: [],
+      twitter: [],
+      instagram: [],
+      facebook: []
+    } as any;
+  });
+
+  const [callbackPresets, setCallbackPresets] = useState<Record<string, {name: string, config: any}[]>>(() => {
+    const saved = localStorage.getItem("nexus_callback_presets");
+    return saved ? JSON.parse(saved) : {
+      youtube: [],
+      linkedin: [],
+      twitter: [],
+      instagram: [],
+      facebook: []
+    };
+  });
+
+  const [newPresetName, setNewPresetName] = useState("");
+  const [showPresetSave, setShowPresetSave] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("nexus_presets", JSON.stringify(presets));
+  }, [presets]);
+
+  useEffect(() => {
+    localStorage.setItem("nexus_platform_presets", JSON.stringify(platformPresets));
+  }, [platformPresets]);
+
+  useEffect(() => {
+    localStorage.setItem("nexus_callback_presets", JSON.stringify(callbackPresets));
+  }, [callbackPresets]);
+
+  const savePreset = () => {
+    if (!newPresetName.trim()) return;
+    const newPreset = {
+      name: newPresetName.trim(),
+      configs: JSON.parse(JSON.stringify(platformConfigs)),
+      platforms: [...selectedPlatforms]
+    };
+    setPresets(prev => [...prev, newPreset]);
+    setNewPresetName("");
+    setShowPresetSave(false);
+  };
+
+  const loadPreset = (presetConfigs: Record<string, any>, platforms: string[]) => {
+    setPlatformConfigs(JSON.parse(JSON.stringify(presetConfigs)));
+    setSelectedPlatforms(platforms);
+  };
+
+  const deletePreset = (name: string) => {
+    setPresets(prev => prev.filter(p => p.name !== name));
+  };
+
+  const savePlatformPreset = (platform: string, name: string) => {
+    if (!name.trim()) return;
+    const config = JSON.parse(JSON.stringify(platformConfigs[platform]));
+    setPlatformPresets(prev => ({
+      ...prev,
+      [platform]: [...(prev[platform] || []), { name: name.trim(), config }]
+    }));
+  };
+
+  const loadPlatformPreset = (platform: string, config: any) => {
+    setPlatformConfigs(prev => ({
+      ...prev,
+      [platform]: JSON.parse(JSON.stringify(config))
+    }));
+  };
+
+  const deletePlatformPreset = (platform: string, name: string) => {
+    setPlatformPresets(prev => ({
+      ...prev,
+      [platform]: (prev[platform] || []).filter(p => p.name !== name)
+    }));
+  };
+
+  const saveCallbackPreset = (platform: string, name: string) => {
+    if (!name.trim()) return;
+    const config = JSON.parse(JSON.stringify(platformConfigs[platform].callback));
+    setCallbackPresets(prev => ({
+      ...prev,
+      [platform]: [...(prev[platform] || []), { name: name.trim(), config }]
+    }));
+  };
+
+  const loadCallbackPreset = (platform: string, config: any) => {
+    setPlatformConfigs(prev => ({
+      ...prev,
+      [platform]: {
+        ...prev[platform],
+        callback: JSON.parse(JSON.stringify(config))
+      }
+    }));
+  };
+
+  const deleteCallbackPreset = (platform: string, name: string) => {
+    setCallbackPresets(prev => ({
+      ...prev,
+      [platform]: (prev[platform] || []).filter(p => p.name !== name)
+    }));
+  };
+
+  const [platformPresetNaming, setPlatformPresetNaming] = useState<string | null>(null);
+  const [tempPlatformPresetName, setTempPlatformPresetName] = useState("");
+
+  const [callbackPresetNaming, setCallbackPresetNaming] = useState<string | null>(null);
+  const [tempCallbackPresetName, setTempCallbackPresetName] = useState("");
+
+  const PlatformPresetManager = ({ platform, color }: { platform: string; color: string }) => {
+    const platformPresetsList = platformPresets[platform] || [];
+    const isNaming = platformPresetNaming === platform;
+
+    return (
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-nexus-text-dim uppercase font-mono tracking-widest">Neural Presets</span>
+          <button 
+            onClick={() => {
+              if (isNaming) {
+                savePlatformPreset(platform, tempPlatformPresetName);
+                setPlatformPresetNaming(null);
+                setTempPlatformPresetName("");
+              } else {
+                setPlatformPresetNaming(platform);
+              }
+            }}
+            className={cn(
+              "text-[10px] font-bold transition-all flex items-center gap-1.5 px-2 py-1 rounded-lg border",
+              isNaming ? "bg-nexus-accent text-black border-nexus-accent" : "text-nexus-accent border-nexus-accent/20 hover:bg-nexus-accent/10"
+            )}
+          >
+            {isNaming ? <CheckCircle2 className="w-3 h-3" /> : <Save className="w-3 h-3" />}
+            {isNaming ? "CONFIRM" : "SAVE NEW"}
+          </button>
+        </div>
+
+        {isNaming && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex gap-2"
+          >
+            <input 
+              type="text"
+              autoFocus
+              value={tempPlatformPresetName}
+              onChange={(e) => setTempPlatformPresetName(e.target.value)}
+              placeholder="Preset Name..."
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-nexus-accent/50"
+            />
+            <button 
+              onClick={() => setPlatformPresetNaming(null)}
+              className="px-2 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+
+        {platformPresetsList.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {platformPresetsList.map(p => (
+              <div key={p.name} className="group relative">
+                <button
+                  onClick={() => loadPlatformPreset(platform, p.config)}
+                  className={cn(
+                    "text-[9px] px-2 py-1 rounded-lg border transition-all flex items-center gap-1.5",
+                    "bg-white/5 border-white/5 hover:border-nexus-accent/50 hover:bg-nexus-accent/10 text-nexus-text-dim hover:text-white"
+                  )}
+                >
+                  <Bookmark className="w-2.5 h-2.5" />
+                  {p.name}
+                </button>
+                <button 
+                  onClick={() => deletePlatformPreset(platform, p.name)}
+                  className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                >
+                  <X className="w-2 h-2" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const CallbackSystemControl = ({ platform }: { platform: string }) => {
+    const config = platformConfigs[platform]?.callback || { enabled: false, trigger: "Comment", keywords: "", action: "CRM Entry" };
+    const presetsList = callbackPresets[platform] || [];
+    const isNaming = callbackPresetNaming === platform;
+    
+    return (
+      <div className="mt-4 p-3 rounded-xl bg-nexus-accent/5 border border-nexus-accent/20 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className={cn("w-3.5 h-3.5", config.enabled ? "text-nexus-accent animate-pulse" : "text-nexus-text-dim")} />
+            <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Neural Callback Interface</span>
+          </div>
+          <button 
+            onClick={() => setPlatformConfigs(prev => ({
+              ...prev,
+              [platform]: {
+                ...prev[platform],
+                callback: { ...config, enabled: !config.enabled }
+              }
+            }))}
+            className={cn(
+              "px-2 py-0.5 rounded text-[8px] font-bold border transition-all",
+              config.enabled ? "bg-nexus-accent text-black border-nexus-accent" : "bg-white/5 text-nexus-text-dim border-white/10"
+            )}
+          >
+            {config.enabled ? "ACTIVE" : "STANDBY"}
+          </button>
+        </div>
+
+        {config.enabled && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex items-center justify-between pt-1 border-t border-white/5">
+              <span className="text-[9px] text-nexus-text-dim uppercase font-mono tracking-widest">Callback Presets</span>
+              <button 
+                onClick={() => {
+                  if (isNaming) {
+                    saveCallbackPreset(platform, tempCallbackPresetName);
+                    setCallbackPresetNaming(null);
+                    setTempCallbackPresetName("");
+                  } else {
+                    setCallbackPresetNaming(platform);
+                  }
+                }}
+                className={cn(
+                  "text-[8px] font-bold transition-all flex items-center gap-1 px-1.5 py-0.5 rounded border",
+                  isNaming ? "bg-nexus-accent text-black border-nexus-accent" : "text-nexus-accent border-nexus-accent/20 hover:bg-nexus-accent/10"
+                )}
+              >
+                {isNaming ? <CheckCircle2 className="w-2.5 h-2.5" /> : <Save className="w-2.5 h-2.5" />}
+                {isNaming ? "OK" : "SAVE"}
+              </button>
+            </div>
+
+            {isNaming && (
+              <motion.div 
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex gap-2"
+              >
+                <input 
+                  type="text"
+                  autoFocus
+                  value={tempCallbackPresetName}
+                  onChange={(e) => setTempCallbackPresetName(e.target.value)}
+                  placeholder="Callback Preset Name..."
+                  className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] text-white outline-none focus:border-nexus-accent/30"
+                />
+                <button 
+                  onClick={() => setCallbackPresetNaming(null)}
+                  className="px-1.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-all"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </motion.div>
+            )}
+
+            {presetsList.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 overflow-x-auto max-h-20 py-1 scrollbar-none">
+                {presetsList.map(p => (
+                  <div key={p.name} className="group relative">
+                    <button
+                      onClick={() => loadCallbackPreset(platform, p.config)}
+                      className={cn(
+                        "text-[8px] px-2 py-0.5 rounded border transition-all flex items-center gap-1 whitespace-nowrap",
+                        "bg-white/5 border-white/5 hover:border-nexus-accent/50 hover:bg-nexus-accent/10 text-nexus-text-dim hover:text-white"
+                      )}
+                    >
+                      <Bookmark className="w-2 h-2" />
+                      {p.name}
+                    </button>
+                    <button 
+                      onClick={() => deleteCallbackPreset(platform, p.name)}
+                      className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <X className="w-2 h-2" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 pt-1 border-t border-white/5">
+              <div className="space-y-1">
+                <label className="text-[8px] text-nexus-text-dim uppercase font-mono">Trigger Type</label>
+                <select 
+                  value={config.trigger}
+                  onChange={(e) => setPlatformConfigs(prev => ({
+                    ...prev,
+                    [platform]: { ...prev[platform], callback: { ...config, trigger: e.target.value } }
+                  }))}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] outline-none hover:border-nexus-accent/20 cursor-pointer transition-all"
+                >
+                  <option value="Comment">Comment</option>
+                  <option value="Mention">Mention</option>
+                  <option value="Message">Direct Message</option>
+                  <option value="Share">Share / Re-post</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[8px] text-nexus-text-dim uppercase font-mono">Automated Action</label>
+                <select 
+                  value={config.action}
+                  onChange={(e) => setPlatformConfigs(prev => ({
+                    ...prev,
+                    [platform]: { ...prev[platform], callback: { ...config, action: e.target.value } }
+                  }))}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] outline-none hover:border-nexus-accent/20 cursor-pointer transition-all"
+                >
+                  <option value="CRM Entry">Add to CRM</option>
+                  <option value="Lead Score">Lead Scoring</option>
+                  <option value="Auto-Reply">Neural Auto-Reply</option>
+                  <option value="Direct Message">Inbound DM</option>
+                  <option value="Email Sequence">Email Enrollment</option>
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[8px] text-nexus-text-dim uppercase font-mono">Neural Keywords (CSV)</label>
+              <input 
+                type="text"
+                value={config.keywords}
+                onChange={(e) => setPlatformConfigs(prev => ({
+                  ...prev,
+                  [platform]: { ...prev[platform], callback: { ...config, keywords: e.target.value } }
+                }))}
+                placeholder="e.g. price, info, demo"
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[9px] outline-none focus:border-nexus-accent/30 transition-all"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const [generatorPrompt, setGeneratorPrompt] = useState("");
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [showSummaryInput, setShowSummaryInput] = useState(false);
+  const [longContentText, setLongContentText] = useState("");
+  const [generatorMode, setGeneratorMode] = useState<"ideas" | "summarize">("ideas");
+  const [isGeneratingIdeas, setIsGeneratingIdeas] = useState(false);
+  const [generatedIdeas, setGeneratedIdeas] = useState<{ idea: string; caption: string; hashtags: string }[]>([]);
+
+  const summarizeContent = async () => {
+    const textToSummarize = activeTab === "generator" ? generatorPrompt : longContentText;
+    if (!textToSummarize) return;
+    setIsSummarizing(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Summarize the following long-form content into high-impact social media captions optimized for the NEXUS ONE platform. 
+      You MUST provide exactly two variations:
+      1. A short, punchy variation for Twitter/X (under 280 characters).
+      2. A more professional, authority-building version for LinkedIn.
+      
+      Content to summarize: "${textToSummarize}"
+      
+      Tone: Futuristic, Professional, Thought-Leader, Direct.
+      
+      Format the response as a JSON array of 2 objects with keys: 
+      "platform": "Twitter" or "LinkedIn"
+      "idea": A short label for this variation
+      "caption": The synthesized caption
+      "hashtags": 2-3 relevant hashtags (as a string)
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction: "You are the NEXUS ONE Content Distiller. You perform hyper-efficient neural summarization for maximum social engagement."
+        }
+      });
+
+      const data = JSON.parse(response.text || "[]");
+      if (activeTab === "generator") {
+        setGeneratedIdeas(data);
+      } else {
+        // If in modal, we can pick the best one or just join them
+        const combined = data.map((d: any) => `[${d.platform} Variation]\n${d.caption}\n\n${d.hashtags}`).join("\n\n---\n\n");
+        setNewPostTitle(combined);
+        setShowSummaryInput(false);
+        setLongContentText("");
+      }
+    } catch (error) {
+      console.error("Neural Summarization Error:", error);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        const { provider, tokens: newTokens } = event.data;
+        setConnectedPlatforms(prev => [...new Set([...prev, provider])]);
+        setTokens(prev => ({ ...prev, [provider]: newTokens }));
+        setIsConnecting(null);
+        setConnectionError(null);
+        setShowLinkedInDiagnostic(false);
+        setShowFacebookDiagnostic(false);
+        setShowInstagramDiagnostic(false);
+      } else if (event.data?.type === 'OAUTH_AUTH_FAILURE') {
+        const { provider, error } = event.data;
+        setConnectionError({ provider, message: error || "Authentication failed" });
+        setIsConnecting(null);
+        if (provider === 'linkedin') {
+          setShowLinkedInDiagnostic(true);
+        } else if (provider === 'facebook') {
+          setShowFacebookDiagnostic(true);
+        } else if (provider === 'instagram') {
+          setShowInstagramDiagnostic(true);
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleConnect = async (provider: string) => {
+    setIsConnecting(provider);
+    setConnectionError(null);
+    try {
+      const response = await fetch(`/api/auth/${provider}/url`);
+      if (!response.ok) throw new Error('Neural interface failed to generate authorization link.');
+      const { url } = await response.json();
+
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+
+      const authWindow = window.open(
+        url,
+        'nexus_oauth',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+
+      if (!authWindow) {
+        setConnectionError({ 
+          provider, 
+          message: 'Neural link blocked by browser. Please authorize popups in your terminal settings.' 
+        });
+        setIsConnecting(null);
+        return;
+      }
+
+      // Check if window is closed by user
+      const checkWindowContent = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkWindowContent);
+          setIsConnecting(prev => {
+            if (prev === provider) {
+              return null;
+            }
+            return prev;
+          });
+        }
+      }, 1000);
+
+    } catch (error: any) {
+      console.error('Connection error:', error);
+      setConnectionError({ 
+        provider, 
+        message: error.message || 'Quantum stabilization failure in neural link.' 
+      });
+      setIsConnecting(null);
+    }
+  };
+
+  const [posts, setPosts] = useState<ScheduledPost[]>(() => {
+    const saved = localStorage.getItem("nexus_posts");
+    return saved ? JSON.parse(saved) : [
+      { id: "1", time: "Today, 18:00", title: "Product Launch Teaser", platformIds: ["instagram", "twitter"], status: "Scheduled" },
+      { id: "2", time: "Tomorrow, 10:00", title: "Customer Success Story", platformIds: ["linkedin", "facebook"], status: "Draft" },
+      { id: "3", time: "Monday, 09:00", title: "Weekly Tech Roundup", platformIds: ["twitter", "linkedin"], status: "Scheduled" },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("nexus_posts", JSON.stringify(posts));
+  }, [posts]);
+
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
 
   // Analytics Filters
   const [selectedPlatform, setSelectedPlatform] = useState("all");
@@ -92,10 +624,28 @@ export const SocialControl = () => {
   const [attachedMedia, setAttachedMedia] = useState<{ url: string; type: "image" | "video" }[]>([]);
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [platformConfigs, setPlatformConfigs] = useState<Record<string, any>>({
-    twitter: { charLimit: 280, thread: false },
-    instagram: { ratio: "1:1", autoCrop: true },
-    linkedin: { visibility: "Anyone" },
-    facebook: { audience: "Public" }
+    twitter: { charLimit: 280, thread: false, callback: { enabled: false, trigger: "Mention", keywords: "help, info", action: "Lead Score" } },
+    instagram: { ratio: "1:1", autoCrop: true, callback: { enabled: false, trigger: "Comment", keywords: "price, buy", action: "Direct Message" } },
+    linkedin: { 
+      visibility: "Public",
+      isLive: false,
+      description: "",
+      streamTitle: "",
+      streamDate: "",
+      streamTime: "",
+      callback: { enabled: false, trigger: "Comment", keywords: "interested, demo", action: "CRM Entry" }
+    },
+    facebook: { audience: "Public", callback: { enabled: false, trigger: "Message", keywords: "details", action: "Auto-Reply" } },
+    youtube: { 
+      visibility: "public", 
+      category: "Entertainment", 
+      isLive: false, 
+      description: "",
+      streamTitle: "",
+      streamDate: "",
+      streamTime: "",
+      callback: { enabled: false, trigger: "Comment", keywords: "tutorial, link", action: "Email Sequence" }
+    }
   });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,7 +662,7 @@ export const SocialControl = () => {
       The tone should be futuristic, professional, and slightly hype-driven. Include 2-3 relevant hashtags.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           systemInstruction: "You are the NEXUS ONE Social Media AI. You generate high-engagement captions that are futuristic and professional."
@@ -128,22 +678,113 @@ export const SocialControl = () => {
     }
   };
 
+  const handleGenerateIdeas = async () => {
+    if (!generatorPrompt) return;
+    setIsGeneratingIdeas(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Generate 3 creative and high-engagement social media post ideas based on this topic: "${generatorPrompt}". 
+      For each idea, provide:
+      1. A short, catchy title/idea.
+      2. A full engaging caption.
+      3. A list of 3-5 relevant hashtags.
+      Format the response as a JSON array of objects with keys: "idea", "caption", "hashtags" (as a string).`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction: "You are the NEXUS ONE Content Strategist. You generate innovative, high-engagement content ideas in JSON format."
+        }
+      });
+
+      const text = response.text || "[]";
+      const ideas = JSON.parse(text);
+      setGeneratedIdeas(ideas);
+    } catch (error) {
+      console.error("Idea Generation Error:", error);
+    } finally {
+      setIsGeneratingIdeas(false);
+    }
+  };
+
+  const useIdea = (idea: { idea: string; caption: string; hashtags: string }) => {
+    setNewPostTitle(`${idea.idea}\n\n${idea.caption}\n\n${idea.hashtags}`);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (post: ScheduledPost) => {
+    setEditingPostId(post.id);
+    setNewPostTitle(post.title);
+    setSelectedPlatforms(post.platformIds);
+    
+    // Parse time
+    if (post.time !== "Not Scheduled") {
+      const [date, time] = post.time.split(", ");
+      setScheduleDate(date);
+      setScheduleTime(time);
+    }
+
+    setAttachedMedia(post.media || []);
+    setPlatformConfigs(post.platformConfigs || {
+      twitter: { charLimit: 280, thread: false },
+      instagram: { ratio: "1:1", autoCrop: true },
+      linkedin: { 
+        visibility: "Public",
+        isLive: false,
+        description: "",
+        streamTitle: "",
+        streamDate: "",
+        streamTime: ""
+      },
+      facebook: { audience: "Public" },
+      youtube: { 
+        visibility: "public", 
+        category: "Entertainment", 
+        isLive: false, 
+        description: "",
+        streamTitle: "",
+        streamDate: "",
+        streamTime: ""
+      }
+    });
+    setIsModalOpen(true);
+  };
+
+  const syncStreamFields = (platform: "youtube" | "linkedin") => {
+    setPlatformConfigs(prev => ({
+      ...prev,
+      [platform]: {
+        ...prev[platform],
+        streamTitle: prev[platform].streamTitle || newPostTitle,
+        description: prev[platform].description || "Neural Broadcast from NEXUS ONE system."
+      }
+    }));
+  };
+
   const handleSave = (status: "Scheduled" | "Draft") => {
     if (!newPostTitle || selectedPlatforms.length === 0) return;
     if (status === "Scheduled" && (!scheduleDate || !scheduleTime)) return;
 
-    const newPost: ScheduledPost = {
-      id: Math.random().toString(36).substr(2, 9),
+    const postData: ScheduledPost = {
+      id: editingPostId || Math.random().toString(36).substr(2, 9),
       title: newPostTitle,
       time: status === "Draft" ? "Not Scheduled" : `${scheduleDate}, ${scheduleTime}`,
-      platforms: PLATFORMS.filter(p => selectedPlatforms.includes(p.id)).map(p => p.icon),
+      platformIds: [...selectedPlatforms],
       status,
       media: attachedMedia,
       platformConfigs: { ...platformConfigs }
     };
 
-    setPosts([newPost, ...posts]);
+    if (editingPostId) {
+      setPosts(prev => prev.map(p => p.id === editingPostId ? postData : p));
+    } else {
+      setPosts([postData, ...posts]);
+    }
+    
     setIsModalOpen(false);
+    setEditingPostId(null);
     // Reset form
     setNewPostTitle("");
     setSelectedPlatforms([]);
@@ -153,9 +794,95 @@ export const SocialControl = () => {
     setPlatformConfigs({
       twitter: { charLimit: 280, thread: false },
       instagram: { ratio: "1:1", autoCrop: true },
-      linkedin: { visibility: "Anyone" },
-      facebook: { audience: "Public" }
+      linkedin: { 
+        visibility: "Public",
+        isLive: false,
+        description: "",
+        streamTitle: "",
+        streamDate: "",
+        streamTime: ""
+      },
+      facebook: { audience: "Public" },
+      youtube: { 
+        visibility: "public", 
+        category: "Entertainment", 
+        isLive: false, 
+        description: "",
+        streamTitle: "",
+        streamDate: "",
+        streamTime: ""
+      }
     });
+  };
+
+  const initiateLiveStream = async () => {
+    const isYoutubeLive = platformConfigs.youtube.isLive && selectedPlatforms.includes("youtube");
+    const isLinkedinLive = platformConfigs.linkedin.isLive && selectedPlatforms.includes("linkedin");
+    
+    if ((!isYoutubeLive && !isLinkedinLive) || isInitiatingLive) return;
+    
+    setIsInitiatingLive(true);
+    try {
+      if (isYoutubeLive) {
+        const streamTitle = platformConfigs.youtube.streamTitle || newPostTitle;
+        const finalStartTime = platformConfigs.youtube.streamDate && platformConfigs.youtube.streamTime 
+          ? `${platformConfigs.youtube.streamDate}T${platformConfigs.youtube.streamTime}:00Z`
+          : (scheduleDate && scheduleTime ? `${scheduleDate}T${scheduleTime}:00Z` : new Date().toISOString());
+
+        const response = await fetch("/api/youtube/live-stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: streamTitle,
+            description: platformConfigs.youtube.description,
+            privacyStatus: platformConfigs.youtube.visibility,
+            category: platformConfigs.youtube.category,
+            scheduledStartTime: finalStartTime,
+            tokens: tokens.google
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(`YouTube Success: ${data.message}\nStream key: ${data.streamKey}`);
+        } else {
+          throw new Error(data.error || "Failed to initiate YouTube live stream");
+        }
+      }
+
+      if (isLinkedinLive) {
+        const streamTitle = platformConfigs.linkedin.streamTitle || newPostTitle;
+        const finalStartTime = platformConfigs.linkedin.streamDate && platformConfigs.linkedin.streamTime 
+          ? `${platformConfigs.linkedin.streamDate}T${platformConfigs.linkedin.streamTime}:00Z`
+          : (scheduleDate && scheduleTime ? `${scheduleDate}T${scheduleTime}:00Z` : new Date().toISOString());
+
+        const response = await fetch("/api/linkedin/live-stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: streamTitle,
+            description: platformConfigs.linkedin.description,
+            visibility: platformConfigs.linkedin.visibility,
+            scheduledStartTime: finalStartTime,
+            tokens: tokens.linkedin
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(`LinkedIn Success: ${data.message}`);
+        } else {
+          throw new Error(data.error || "Failed to initiate LinkedIn live stream");
+        }
+      }
+
+      handleSave("Scheduled");
+    } catch (error: any) {
+      console.error("Live Stream Initiation Error:", error);
+      alert(`Error initializing neural stream: ${error.message}`);
+    } finally {
+      setIsInitiatingLive(false);
+    }
   };
 
   const togglePlatform = (id: string) => {
@@ -164,15 +891,39 @@ export const SocialControl = () => {
     );
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFiles = (files: FileList | null) => {
     if (!files) return;
 
     Array.from(files).forEach(file => {
       const url = URL.createObjectURL(file);
       const type = file.type.startsWith("video") ? "video" : "image";
-      setAttachedMedia(prev => [...prev, { url, type }]);
+      setAttachedMedia(prev => {
+        if (prev.length >= 4) return prev;
+        return [...prev, { url, type }];
+      });
     });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFiles(e.target.files);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFiles(e.dataTransfer.files);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
 
   const removeMedia = (index: number) => {
@@ -207,9 +958,150 @@ export const SocialControl = () => {
             >
               ANALYTICS
             </button>
+            <button 
+              onClick={() => setActiveTab("generator")}
+              className={cn(
+                "px-6 py-2 rounded-lg text-xs font-bold transition-all",
+                activeTab === "generator" ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+              )}
+            >
+              IDEA GENERATOR
+            </button>
+            <button 
+              onClick={() => setActiveTab("presets")}
+              className={cn(
+                "px-6 py-2 rounded-lg text-xs font-bold transition-all",
+                activeTab === "presets" ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+              )}
+            >
+              NEURAL PRESETS
+            </button>
           </div>
         </div>
         
+        {activeTab === "presets" && (
+          <motion.div 
+            key="presets"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            <div className="glass p-8 rounded-3xl">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                  <Bookmark className="w-6 h-6 text-nexus-accent" />
+                  <div>
+                    <h3 className="text-xl font-display font-bold">Neural Preset Registry</h3>
+                    <p className="text-xs text-nexus-text-dim uppercase tracking-widest mt-1">Global management interface for cross-platform configurations</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Global Presets */}
+                <div className="lg:col-span-3">
+                  <h4 className="text-xs font-mono text-nexus-text-dim uppercase tracking-[0.2em] mb-4 border-b border-white/5 pb-2">Global System Presets</h4>
+                  {presets.length === 0 ? (
+                    <div className="p-12 border-2 border-dashed border-white/5 rounded-3xl text-center">
+                      <p className="text-sm text-nexus-text-dim">No global neural presets initialized.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {presets.map(preset => (
+                        <div key={preset.name} className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-nexus-accent/30 transition-all group">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="p-2 rounded-lg bg-nexus-accent/10">
+                              <Zap className="w-4 h-4 text-nexus-accent" />
+                            </div>
+                            <button 
+                              onClick={() => deletePreset(preset.name)}
+                              className="p-1.5 rounded-lg hover:bg-red-500/10 text-nexus-text-dim hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <h5 className="font-bold text-white mb-2">{preset.name}</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {preset.platforms?.map(pid => {
+                              const P = PLATFORMS.find(p => p.id === pid);
+                              return P ? (
+                                <div key={pid} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/5">
+                                  <P.icon className={cn("w-3 h-3", P.color)} />
+                                  <span className="text-[9px] font-bold text-nexus-text-dim uppercase tracking-widest">{P.name}</span>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Platform Specific Presets */}
+                {PLATFORMS.map(platform => {
+                  const pList = platformPresets[platform.id] || [];
+                  const cList = callbackPresets[platform.id] || [];
+                  if (pList.length === 0 && cList.length === 0) return null;
+
+                  return (
+                    <div key={platform.id} className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-6">
+                      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                        <div className={cn("p-2 rounded-xl bg-white/5", platform.color)}>
+                          <platform.icon className="w-5 h-5" />
+                        </div>
+                        <h5 className="font-bold text-lg uppercase tracking-tight">{platform.name} Matrix</h5>
+                      </div>
+
+                      {pList.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="text-[10px] text-nexus-text-dim uppercase font-mono tracking-widest">Protocol Presets</p>
+                          <div className="space-y-2">
+                            {pList.map(p => (
+                              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group">
+                                <span className="text-xs font-medium">{p.name}</span>
+                                <button 
+                                  onClick={() => deletePlatformPreset(platform.id, p.name)}
+                                  className="p-1 rounded-md hover:bg-red-500/10 text-nexus-text-dim hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {cList.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="text-[10px] text-nexus-text-dim uppercase font-mono tracking-widest">Callback Routines</p>
+                          <div className="space-y-2">
+                            {cList.map(p => (
+                              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-nexus-accent/5 border border-nexus-accent/10 hover:bg-nexus-accent/10 transition-all group">
+                                <div className="flex items-center gap-2">
+                                  <Zap className="w-3 h-3 text-nexus-accent" />
+                                  <span className="text-xs font-medium">{p.name}</span>
+                                </div>
+                                <button 
+                                  onClick={() => deleteCallbackPreset(platform.id, p.name)}
+                                  className="p-1 rounded-md hover:bg-red-500/10 text-nexus-text-dim hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {activeTab === "control" && (
           <button 
             onClick={() => setIsModalOpen(true)}
@@ -231,74 +1123,485 @@ export const SocialControl = () => {
             className="space-y-8"
           >
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {PLATFORMS.map((platform, i) => (
-                <div key={i} className="glass p-4 rounded-2xl flex items-center gap-4">
-                  <div className={cn("p-2 rounded-lg bg-white/5", platform.color)}>
-                    <platform.icon className="w-5 h-5" />
+               {PLATFORMS.map((platform, i) => {
+                 const isConnected = connectedPlatforms.includes(platform.provider);
+                 const isThisConnecting = isConnecting === platform.provider;
+                 const hasError = connectionError?.provider === platform.provider;
+
+                 return (
+                   <button 
+                     key={i} 
+                     onClick={() => !isConnected && handleConnect(platform.provider)}
+                     disabled={isThisConnecting}
+                     className={cn(
+                       "glass p-4 rounded-2xl flex items-center gap-4 text-left transition-all group relative",
+                       isConnected ? "border-green-500/30 bg-green-500/5" : hasError ? "border-red-500/30 bg-red-500/5" : "hover:border-nexus-accent/50"
+                     )}
+                   >
+                     <div className={cn(
+                       "p-2 rounded-lg bg-white/5 transition-colors", 
+                       platform.color,
+                       isConnected && "bg-green-500/20 text-green-500",
+                       hasError && "bg-red-500/20 text-red-500"
+                     )}>
+                       {isThisConnecting ? (
+                         <Loader2 className="w-5 h-5 animate-spin" />
+                       ) : isConnected ? (
+                         <CheckCircle2 className="w-5 h-5" />
+                       ) : hasError ? (
+                         <AlertCircle className="w-5 h-5" />
+                       ) : (
+                         <platform.icon className="w-5 h-5" />
+                       )}
+                     </div>
+                     <div className="flex-1">
+                       <p className={cn(
+                         "text-sm font-bold",
+                         isConnected ? "text-green-500" : hasError ? "text-red-500" : "text-white"
+                       )}>{platform.name}</p>
+                       <div className="flex items-center gap-1">
+                         <div className={cn(
+                           "w-1.5 h-1.5 rounded-full",
+                           isConnected ? "bg-green-500 animate-pulse" : hasError ? "bg-red-500" : "bg-nexus-text-dim"
+                         )} />
+                         <p className="text-[10px] text-nexus-text-dim uppercase tracking-widest font-mono">
+                           {isThisConnecting ? "Initiating..." : isConnected ? "Verified" : hasError ? "Failed" : "Link Neural Interface"}
+                         </p>
+                       </div>
+                     </div>
+                     {!isConnected && !isThisConnecting && !hasError && (
+                       <Link2 className="w-4 h-4 text-nexus-text-dim opacity-0 group-hover:opacity-100 transition-opacity" />
+                     )}
+                     {hasError && (
+                       <div className="absolute inset-x-0 -bottom-1 flex justify-center">
+                         <div className="bg-red-500 text-white text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter shadow-lg">
+                           Interface Error
+                         </div>
+                       </div>
+                     )}
+                   </button>
+                 );
+               })}
+            </div>
+            
+            {/* LinkedIn Neural Diagnostic Interface */}
+            <AnimatePresence>
+              {showLinkedInDiagnostic && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="glass p-6 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-500" />
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-red-500">LinkedIn Neural Diagnostic</h4>
+                      </div>
+                      <button 
+                        onClick={() => setShowLinkedInDiagnostic(false)}
+                        className="p-1 hover:bg-white/10 rounded-lg transition-all"
+                      >
+                        <X className="w-4 h-4 text-nexus-text-dim" />
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-[11px] space-y-2">
+                        <p className="text-nexus-text-dim uppercase tracking-tighter">ERROR CODE: <span className="text-red-400">{connectionError?.message || "PX-SYNC-LNK-01"}</span></p>
+                        <p className="text-white/80 leading-relaxed italic border-l-2 border-nexus-accent pl-3">
+                          "Neural synchronization with LinkedIn professional database failed. Authorization handshake was rejected by the host node."
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-nexus-text-dim">Potential Root Causes</p>
+                          <ul className="space-y-1.5">
+                            {[
+                              "User aborted the neural authorization handshake.",
+                              "LinkedIn API Quota or Developer Tier restrictions.",
+                              "Mismatched Redirect URI in LinkedIn Neural Dashboard.",
+                              "Insufficient permissions granted during protocol sync."
+                            ].map((cause, i) => (
+                              <li key={i} className="flex items-center gap-2 text-[10px] text-white/60">
+                                <Activity className="w-3 h-3 text-red-500/50" />
+                                {cause}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-nexus-accent">Protocol Remediation</p>
+                          <div className="space-y-2">
+                            <button 
+                              onClick={() => handleConnect('linkedin')}
+                              className="w-full py-2 bg-nexus-accent text-black text-[10px] font-bold rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                            >
+                              <Zap className="w-3 h-3" />
+                              RETRY NEURAL SYNC
+                            </button>
+                            <a 
+                              href="https://www.linkedin.com/developers/apps" 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="w-full py-2 bg-white/5 border border-white/10 text-white text-[10px] font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all font-mono"
+                            >
+                              <Monitor className="w-3 h-3" />
+                              CHECK LINKEDIN DEV CONSOLE
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2 flex items-center justify-center">
+                        <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter font-mono">
+                          STATUS: WAITING FOR USER ACTION | LATENCY: <span className="text-nexus-accent">14ms</span>
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold">{platform.name}</p>
-                    <p className="text-[10px] text-nexus-text-dim uppercase tracking-widest">Connected</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Facebook Neural Diagnostic Interface */}
+            <AnimatePresence>
+              {showFacebookDiagnostic && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="glass p-6 rounded-3xl border border-blue-500/20 bg-blue-500/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Facebook className="w-5 h-5 text-blue-500" />
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-blue-500">Facebook Protocol Failure</h4>
+                      </div>
+                      <button 
+                        onClick={() => setShowFacebookDiagnostic(false)}
+                        className="p-1 hover:bg-white/10 rounded-lg transition-all"
+                      >
+                        <X className="w-4 h-4 text-nexus-text-dim" />
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-[11px] space-y-2">
+                        <p className="text-nexus-text-dim uppercase tracking-tighter">ERROR: <span className="text-red-400">{connectionError?.message || "FB-LINK-ERR-07"}</span></p>
+                        <p className="text-white/80 leading-relaxed italic border-l-2 border-blue-500 pl-3">
+                          "Meta Graph API handshake rejected. Neural tether failed to establish secure tunnel to social node."
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-nexus-text-dim">Host Rejection Log</p>
+                          <ul className="space-y-1.5">
+                            {[
+                              "Handshake timeout during token exchange.",
+                              "App ID or App Secret mismatch in environment headers.",
+                              "Facebook Business permissions not verified.",
+                              "Redirect URL mismatch in Meta Developer Console."
+                            ].map((cause, i) => (
+                              <li key={i} className="flex items-center gap-2 text-[10px] text-white/60">
+                                <Activity className="w-3 h-3 text-blue-500/50" />
+                                {cause}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-nexus-accent">Quantum Recovery</p>
+                          <div className="space-y-2">
+                            <button 
+                              onClick={() => handleConnect('facebook')}
+                              className="w-full py-2 bg-nexus-accent text-black text-[10px] font-bold rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                            >
+                              <Zap className="w-3 h-3" />
+                              RE-ESTABLISH LINK
+                            </button>
+                            <a 
+                              href="https://developers.facebook.com/apps/" 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="w-full py-2 bg-white/5 border border-white/10 text-white text-[10px] font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all font-mono"
+                            >
+                              <Monitor className="w-3 h-3" />
+                              META DEV CONSOLE
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Instagram Neural Diagnostic Interface */}
+          <AnimatePresence>
+            {showInstagramDiagnostic && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="glass p-6 rounded-3xl border border-pink-500/20 bg-pink-500/5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Instagram className="w-5 h-5 text-pink-500" />
+                      <h4 className="text-sm font-bold uppercase tracking-widest text-pink-500">Instagram Protocol Failure</h4>
+                    </div>
+                    <button 
+                      onClick={() => setShowInstagramDiagnostic(false)}
+                      className="p-1 hover:bg-white/10 rounded-lg transition-all"
+                    >
+                      <X className="w-4 h-4 text-nexus-text-dim" />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-[11px] space-y-2">
+                      <p className="text-nexus-text-dim uppercase tracking-tighter">ERROR: <span className="text-red-400">{connectionError?.message || "IG-LINK-ERR-12"}</span></p>
+                      <p className="text-white/80 leading-relaxed italic border-l-2 border-pink-500 pl-3">
+                        "Instagram Basic Display API synchronization failed. Neural tether rejected by the visual sub-node."
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-nexus-text-dim">Visual Rejection Log</p>
+                        <ul className="space-y-1.5">
+                          {[
+                            "User declined permission for media synthesis.",
+                            "Invalid Client ID or Client Secret in environment vault.",
+                            "Mismatched OAuth redirect URI in Instagram dashboard.",
+                            "API legacy mode detected. Upgrade to Graph API requested."
+                          ].map((cause, i) => (
+                            <li key={i} className="flex items-center gap-2 text-[10px] text-white/60">
+                              <Activity className="w-3 h-3 text-pink-500/50" />
+                              {cause}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-nexus-accent">Quantum Recovery</p>
+                        <div className="space-y-2">
+                          <button 
+                            onClick={() => handleConnect('instagram')}
+                            className="w-full py-2 bg-nexus-accent text-black text-[10px] font-bold rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-95 transition-all"
+                          >
+                            <Zap className="w-3 h-3" />
+                            RE-ESTABLISH VISUAL LINK
+                          </button>
+                          <a 
+                            href="https://www.instagram.com/developer/" 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="w-full py-2 bg-white/5 border border-white/10 text-white text-[10px] font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all font-mono"
+                          >
+                            <Monitor className="w-3 h-3" />
+                            INSTAGRAM DEV CONSOLE
+                          </a>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 <div className="glass p-6 rounded-3xl">
-                  <h3 className="text-lg font-display font-semibold mb-6 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-nexus-accent" />
-                    Content Queue
-                  </h3>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-display font-semibold flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-nexus-accent" />
+                      Content Queue
+                    </h3>
+                    <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/5">
+                      {["All", "Scheduled", "Draft"].map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => setPostFilter(f as any)}
+                          className={cn(
+                            "px-3 py-1 rounded-lg text-[10px] font-bold transition-all",
+                            postFilter === f ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+                          )}
+                        >
+                          {f.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="space-y-4">
                     <AnimatePresence initial={false}>
-                      {posts.map((post) => (
+                      {posts
+                        .filter(p => postFilter === "All" || p.status === postFilter)
+                        .map((post) => (
                         <motion.div 
                           key={post.id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between group hover:border-nexus-accent/30 transition-all"
+                          className="flex flex-col group"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-nexus-accent/10 flex items-center justify-center relative overflow-hidden">
-                              {post.media && post.media.length > 0 ? (
-                                post.media[0].type === "image" ? (
-                                  <img src={post.media[0].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center bg-nexus-accent/20">
-                                    <Film className="w-5 h-5 text-nexus-accent" />
+                          <div 
+                            onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
+                            className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between hover:border-nexus-accent/30 transition-all cursor-pointer"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 rounded-xl bg-nexus-accent/10 flex items-center justify-center relative overflow-hidden">
+                                {post.media && post.media.length > 0 ? (
+                                  post.media[0].type === "image" ? (
+                                    <img src={post.media[0].url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-nexus-accent/20">
+                                      <Film className="w-5 h-5 text-nexus-accent" />
+                                    </div>
+                                  )
+                                ) : post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive ? (
+                                  <div className="w-full h-full flex items-center justify-center bg-red-500/20">
+                                    <Play className="w-5 h-5 text-red-500 fill-red-500" />
                                   </div>
-                                )
-                              ) : (
-                                <Zap className="w-6 h-6 text-nexus-accent" />
-                              )}
+                                ) : (
+                                  <Zap className="w-6 h-6 text-nexus-accent" />
+                                )}
+                                {(post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive) && (
+                                  <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-bold">{post.title}</h4>
+                                <p className="text-xs text-nexus-text-dim mt-1 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {post.time}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="text-sm font-bold">{post.title}</h4>
-                              <p className="text-xs text-nexus-text-dim mt-1 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {post.time}
-                              </p>
+                            <div className="flex items-center gap-4">
+                              <div className="flex -space-x-2">
+                                {post.platformIds.map((pid, j) => {
+                                  const platform = PLATFORMS.find(p => p.id === pid);
+                                  const Icon = platform?.icon || Share2;
+                                  return (
+                                    <div key={j} className="w-6 h-6 rounded-full bg-nexus-bg border border-nexus-border flex items-center justify-center">
+                                      <Icon className="w-3 h-3 text-nexus-text-dim" />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <span className={cn(
+                                "text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-widest",
+                                (post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive) ? "bg-red-500/10 text-red-500" :
+                                post.status === "Ready" ? "bg-green-500/10 text-green-500" : 
+                                post.status === "Draft" ? "bg-white/10 text-nexus-text-dim" :
+                                "bg-nexus-accent/10 text-nexus-accent"
+                              )}>
+                                {(post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive) ? "Live Stream" : post.status}
+                              </span>
+                              <ChevronDown className={cn("w-4 h-4 text-nexus-text-dim transition-transform", expandedPost === post.id && "rotate-180")} />
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="flex -space-x-2">
-                              {post.platforms.map((Icon, j) => (
-                                <div key={j} className="w-6 h-6 rounded-full bg-nexus-bg border border-nexus-border flex items-center justify-center">
-                                  <Icon className="w-3 h-3 text-nexus-text-dim" />
+
+                          <AnimatePresence>
+                            {expandedPost === post.id && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="p-4 mx-4 mb-2 -mt-2 bg-white/5 border-x border-b border-white/5 rounded-b-2xl space-y-4">
+                                  {post.platformConfigs?.youtube?.isLive && (
+                                    <div className="space-y-3">
+                                      <div className="flex items-center gap-2 text-red-500 mb-1">
+                                        <Youtube className="w-3 h-3" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest">Neural Broadcast Config (YouTube)</span>
+                                      </div>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Neural Stream Title</p>
+                                          <p className="text-xs font-medium text-white">{post.platformConfigs.youtube.streamTitle || post.title}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Visibility Status</p>
+                                          <p className="text-xs font-medium text-white uppercase">{post.platformConfigs.youtube.visibility}</p>
+                                        </div>
+                                        <div className="col-span-2 space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Broadcast Description</p>
+                                          <p className="text-xs font-medium text-white leading-relaxed">{post.platformConfigs.youtube.description || "No description provided."}</p>
+                                        </div>
+                                        <div className="col-span-2 space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Scheduled Start Time</p>
+                                          <p className="text-xs font-medium text-nexus-accent">
+                                            {(post.platformConfigs.youtube.streamDate && post.platformConfigs.youtube.streamTime) 
+                                              ? `${post.platformConfigs.youtube.streamDate} @ ${post.platformConfigs.youtube.streamTime}`
+                                              : post.time}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {post.platformConfigs?.linkedin?.isLive && (
+                                    <div className="space-y-3 pt-4 border-t border-white/5">
+                                      <div className="flex items-center gap-2 text-blue-500 mb-1">
+                                        <Linkedin className="w-3 h-3" />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest">LinkedIn Broadcast Config</span>
+                                      </div>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Stream Title</p>
+                                          <p className="text-xs font-medium text-white">{post.platformConfigs.linkedin.streamTitle || post.title}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Visibility Setting</p>
+                                          <p className="text-xs font-medium text-white uppercase">{post.platformConfigs.linkedin.visibility}</p>
+                                        </div>
+                                        <div className="col-span-2 space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Stream Description</p>
+                                          <p className="text-xs font-medium text-white leading-relaxed">{post.platformConfigs.linkedin.description || "No description provided."}</p>
+                                        </div>
+                                        <div className="col-span-2 space-y-1">
+                                          <p className="text-[9px] text-nexus-text-dim uppercase tracking-tighter">Scheduled Start Time</p>
+                                          <p className="text-xs font-medium text-nexus-accent">
+                                            {(post.platformConfigs.linkedin.streamDate && post.platformConfigs.linkedin.streamTime) 
+                                              ? `${post.platformConfigs.linkedin.streamDate} @ ${post.platformConfigs.linkedin.streamTime}`
+                                              : post.time}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditModal(post);
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg bg-white/5 text-[10px] font-bold hover:bg-white/10 transition-colors uppercase"
+                                    >
+                                      Edit Configuration
+                                    </button>
+                                    <button 
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="px-3 py-1.5 rounded-lg bg-nexus-accent/10 text-nexus-accent text-[10px] font-bold hover:bg-nexus-accent hover:text-black transition-colors uppercase"
+                                    >
+                                      Instant Broadcast
+                                    </button>
+                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                            <span className={cn(
-                              "text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-widest",
-                              post.status === "Ready" ? "bg-green-500/10 text-green-500" : 
-                              post.status === "Draft" ? "bg-white/10 text-nexus-text-dim" :
-                              "bg-nexus-accent/10 text-nexus-accent"
-                            )}>
-                              {post.status}
-                            </span>
-                          </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </motion.div>
                       ))}
                     </AnimatePresence>
@@ -344,6 +1647,123 @@ export const SocialControl = () => {
                 </div>
               </div>
             </div>
+          </motion.div>
+        ) : activeTab === "generator" ? (
+          <motion.div
+            key="generator"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            <div className="glass p-8 rounded-[40px] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-nexus-accent/5 blur-[100px] rounded-full -mr-32 -mt-32" />
+              <div className="relative z-10 max-w-2xl">
+                <h3 className="text-2xl font-display font-bold mb-2 flex items-center gap-3">
+                  <Sparkles className="w-6 h-6 text-nexus-accent animate-pulse" />
+                  Neural Content Architect
+                </h3>
+                <p className="text-nexus-text-dim mb-8">Ignite your digital footprint with AI-engineered post strategies and captions.</p>
+                
+                <div className="space-y-6">
+                  <div className="flex gap-2 p-1 bg-white/5 rounded-2xl w-fit border border-white/5">
+                    <button 
+                      onClick={() => setGeneratorMode("ideas")}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all",
+                        generatorMode === "ideas" ? "bg-nexus-accent text-black shadow-lg shadow-nexus-accent/20" : "text-nexus-text-dim hover:text-white"
+                      )}
+                    >
+                      Idea Generation
+                    </button>
+                    <button 
+                      onClick={() => setGeneratorMode("summarize")}
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all",
+                        generatorMode === "summarize" ? "bg-nexus-accent text-black shadow-lg shadow-nexus-accent/20" : "text-nexus-text-dim hover:text-white"
+                      )}
+                    >
+                      Content Summarizer
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <textarea
+                      value={generatorPrompt}
+                      onChange={(e) => setGeneratorPrompt(e.target.value)}
+                      placeholder={generatorMode === "ideas" ? "What is the objective? (e.g., Launching a futuristic AI trading bot...)" : "Paste long-form content to summarize (articles, blogs, etc.)..."}
+                      className="w-full bg-white/5 border border-white/10 rounded-3xl p-6 text-sm outline-none focus:border-nexus-accent/50 transition-all min-h-[160px] resize-none"
+                    />
+                    <button
+                      onClick={generatorMode === "ideas" ? handleGenerateIdeas : summarizeContent}
+                      disabled={isGeneratingIdeas || isSummarizing || !generatorPrompt}
+                      className="absolute bottom-4 right-4 bg-nexus-accent text-black p-4 rounded-2xl hover:bg-white transition-all disabled:opacity-50 disabled:grayscale group shadow-xl shadow-nexus-accent/10"
+                    >
+                      {isGeneratingIdeas || isSummarizing ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-widest hidden group-hover:inline transition-all">
+                            {generatorMode === "ideas" ? "Generate Blueprints" : "Neural Summarize"}
+                          </span>
+                          <Zap className="w-5 h-5" />
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <AnimatePresence mode="popLayout">
+                {generatedIdeas.map((idea, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="glass p-6 rounded-[32px] flex flex-col group hover:border-nexus-accent/30 transition-all"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-2 rounded-lg bg-nexus-accent/10">
+                        <Sparkles className="w-4 h-4 text-nexus-accent" />
+                      </div>
+                      <span className="text-[10px] font-bold text-nexus-text-dim uppercase tracking-tighter">Option {i + 1}</span>
+                    </div>
+                    
+                    <h4 className="text-lg font-bold mb-3">{idea.idea}</h4>
+                    <p className="text-xs text-nexus-text-dim leading-relaxed mb-4 flex-grow line-clamp-4">
+                      {idea.caption}
+                    </p>
+                    
+                    <div className="flex flex-wrap gap-1 mb-6">
+                      {idea.hashtags.split(" ").map((tag, j) => (
+                        <span key={j} className="text-[10px] text-nexus-accent font-mono">{tag}</span>
+                      ))}
+                    </div>
+
+                    <button 
+                      onClick={() => useIdea(idea)}
+                      className="w-full p-4 rounded-2xl bg-white/5 text-white font-bold text-xs hover:bg-nexus-accent hover:text-black transition-all flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      DEPLOY DRAFT
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {generatedIdeas.length === 0 && !isGeneratingIdeas && (
+              <div className="py-20 flex flex-col items-center text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                  <Sparkles className="w-8 h-8 text-white/20" />
+                </div>
+                <p className="text-nexus-text-dim text-sm max-w-xs italic">Awaiting neural input. Describe your goal to generate content blueprints.</p>
+              </div>
+            )}
           </motion.div>
         ) : (
           <motion.div 
@@ -516,6 +1936,88 @@ export const SocialControl = () => {
                 </div>
               </div>
             </div>
+
+            {/* Live Stream Intelligence Section */}
+            {(selectedPlatform === "all" || selectedPlatform === "youtube" || selectedPlatform === "linkedin") && (
+              <div className="space-y-8 pt-8 border-t border-white/5 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                    <Play className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-display font-bold">Neural Live Intelligence</h3>
+                    <p className="text-xs text-nexus-text-dim uppercase tracking-widest">Real-Time Ingestion Performance</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  {[
+                    { label: "Concurrent Viewers", value: "1.8K", trend: "+12.4%", icon: Users, color: "text-red-400" },
+                    { label: "Peak Viewers", value: "2.4K", trend: "Peak Reached", icon: TrendingUp, color: "text-nexus-accent" },
+                    { label: "Total Views", value: "45.2K", trend: "+5.2%", icon: Eye, color: "text-blue-400" },
+                    { label: "Audience Retention", value: "72%", trend: "Stable", icon: Activity, color: "text-purple-400" },
+                  ].map((metric, i) => (
+                    <div key={i} className="glass p-5 rounded-2xl relative overflow-hidden group">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className={cn("p-2 rounded-xl bg-white/5", metric.color)}>
+                          <metric.icon className="w-5 h-5" />
+                        </div>
+                        <span className="text-[10px] font-bold text-nexus-accent bg-nexus-accent/10 px-2 py-1 rounded-lg">
+                          {metric.trend}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-nexus-text-dim uppercase tracking-widest mb-1">{metric.label}</p>
+                      <h4 className="text-2xl font-display font-bold">{metric.value}</h4>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="glass p-8 rounded-3xl">
+                  <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-lg font-display font-semibold flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-red-500" />
+                      Live Pulse: Viewership vs Retention
+                    </h3>
+                  </div>
+                  <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={LIVE_ANALYTICS_DATA}>
+                        <defs>
+                          <linearGradient id="colorViewers" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorRetention" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
+                            <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                        <XAxis 
+                          dataKey="time" 
+                          stroke="#ffffff30" 
+                          fontSize={10} 
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis 
+                          stroke="#ffffff30" 
+                          fontSize={10} 
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: "#0a0a0c", border: "1px solid #ffffff10", borderRadius: "12px" }}
+                          itemStyle={{ fontSize: "12px" }}
+                        />
+                        <Area type="monotone" dataKey="viewers" stroke="#ef4444" fillOpacity={1} fill="url(#colorViewers)" strokeWidth={3} />
+                        <Area type="monotone" dataKey="retention" stroke="#a855f7" fillOpacity={1} fill="url(#colorRetention)" strokeWidth={3} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -539,11 +2041,14 @@ export const SocialControl = () => {
             >
               <div className="p-6 border-b border-nexus-border flex justify-between items-center bg-gradient-to-r from-nexus-accent/5 to-transparent shrink-0">
                 <h3 className="text-xl font-display font-bold flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-nexus-accent" />
-                  Schedule Neural Post
+                  {editingPostId ? <Settings2 className="w-5 h-5 text-nexus-accent" /> : <Plus className="w-5 h-5 text-nexus-accent" />}
+                  {editingPostId ? "Modify Neural Post" : "Schedule Neural Post"}
                 </h3>
                 <button 
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setEditingPostId(null);
+                  }}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -554,30 +2059,87 @@ export const SocialControl = () => {
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest block">Post Content / Title</label>
-                    <button 
-                      onClick={generateAICaption}
-                      disabled={isGeneratingCaption || (!newPostTitle && attachedMedia.length === 0)}
-                      className="flex items-center gap-2 text-[10px] font-bold text-nexus-accent hover:text-white transition-colors disabled:opacity-50"
-                    >
-                      {isGeneratingCaption ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3 h-3" />
-                      )}
-                      AI GENERATE CAPTION
-                    </button>
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => handleSave("Draft")}
+                        disabled={!newPostTitle || selectedPlatforms.length === 0}
+                        className="flex items-center gap-2 text-[10px] font-bold text-nexus-text-dim hover:text-white transition-colors disabled:opacity-50"
+                      >
+                        <Save className="w-3 h-3" />
+                        SAVE DRAFT
+                      </button>
+                      <button 
+                        onClick={() => setShowSummaryInput(!showSummaryInput)}
+                        className="flex items-center gap-2 text-[10px] font-bold text-nexus-text-dim hover:text-white transition-colors"
+                      >
+                        <Activity className="w-3 h-3" />
+                        SUMMARIZE LONG CONTENT
+                      </button>
+                      <button 
+                        onClick={generateAICaption}
+                        disabled={isGeneratingCaption || (!newPostTitle && attachedMedia.length === 0)}
+                        className="flex items-center gap-2 text-[10px] font-bold text-nexus-accent hover:text-white transition-colors disabled:opacity-50"
+                      >
+                        {isGeneratingCaption ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                        AI GENERATE CAPTION
+                      </button>
+                    </div>
                   </div>
+
+                  <AnimatePresence>
+                    {showSummaryInput && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="mb-4 space-y-3 overflow-hidden"
+                      >
+                        <textarea 
+                          value={longContentText}
+                          onChange={(e) => setLongContentText(e.target.value)}
+                          placeholder="Paste the long article or post content here to be distilled by Nexus AI..."
+                          className="w-full h-32 bg-nexus-accent/5 border border-nexus-accent/20 rounded-2xl p-4 text-xs outline-none focus:border-nexus-accent/50 transition-colors resize-none"
+                        />
+                        <div className="flex justify-between items-center bg-nexus-accent/5 p-3 rounded-xl border border-nexus-accent/10">
+                          <p className="text-[10px] text-nexus-text-dim font-mono italic">
+                            Nexus AI will generate platform-balanced summaries for Twitter and LinkedIn.
+                          </p>
+                          <button 
+                            onClick={summarizeContent}
+                            disabled={isSummarizing || !longContentText}
+                            className="px-4 py-1.5 bg-nexus-accent text-black text-[10px] font-bold rounded-lg hover:bg-white transition-all disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {isSummarizing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                            START DISTILLATION
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   <textarea 
                     value={newPostTitle}
                     onChange={(e) => setNewPostTitle(e.target.value)}
                     placeholder="What's the message for the digital universe?"
-                    className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-nexus-accent/50 transition-colors resize-none"
+                    className="w-full h-32 bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-nexus-accent/50 transition-colors resize-none"
                   />
                 </div>
 
                 <div>
                   <label className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest mb-3 block">Media Assets</label>
-                  <div className="grid grid-cols-4 gap-3">
+                  <div 
+                    className={cn(
+                      "grid grid-cols-4 gap-3 p-4 rounded-2xl border-2 border-dashed transition-all",
+                      isDragging ? "border-nexus-accent bg-nexus-accent/5" : "border-white/5 bg-white/5"
+                    )}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
                     {attachedMedia.map((media, i) => (
                       <div key={i} className="aspect-square rounded-xl glass relative group overflow-hidden border-nexus-accent/20">
                         {media.type === "image" ? (
@@ -599,10 +2161,20 @@ export const SocialControl = () => {
                       <button 
                         onClick={() => fileInputRef.current?.click()}
                         className="aspect-square rounded-xl border-2 border-dashed border-white/10 hover:border-nexus-accent/50 hover:bg-nexus-accent/5 transition-all flex flex-col items-center justify-center gap-2 text-nexus-text-dim hover:text-nexus-accent"
+                        id="media-upload-trigger"
                       >
-                        <UploadCloud className="w-6 h-6" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Upload</span>
+                        <UploadCloud className={cn("w-6 h-6", isDragging && "animate-bounce text-nexus-accent")} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">
+                          {isDragging ? "Drop to Attach" : "Attach Media"}
+                        </span>
                       </button>
+                    )}
+                    
+                    {attachedMedia.length === 0 && !isDragging && (
+                      <div className="col-span-4 py-8 flex flex-col items-center justify-center gap-2 opacity-50 pointer-events-none">
+                        <p className="text-xs">Drag and drop assets here or click to select</p>
+                        <p className="text-[9px] font-mono tracking-tighter">MAX 4 NEURAL ASSETS (IMG/VOD)</p>
+                      </div>
                     )}
                   </div>
                   <input 
@@ -612,6 +2184,7 @@ export const SocialControl = () => {
                     multiple
                     accept="image/*,video/*"
                     className="hidden"
+                    id="file-upload-input"
                   />
                 </div>
 
@@ -623,15 +2196,20 @@ export const SocialControl = () => {
                         key={platform.id}
                         onClick={() => togglePlatform(platform.id)}
                         className={cn(
-                          "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all",
+                          "flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all group",
                           selectedPlatforms.includes(platform.id)
-                            ? "bg-nexus-accent/10 border-nexus-accent text-nexus-accent"
+                            ? "bg-nexus-accent/10 border-nexus-accent text-nexus-accent shadow-[0_0_15px_rgba(5,255,161,0.1)]"
                             : "bg-white/5 border-white/5 text-nexus-text-dim hover:border-white/20"
                         )}
                       >
-                        <platform.icon className="w-4 h-4" />
-                        <span className="text-xs font-medium">{platform.name}</span>
-                        {selectedPlatforms.includes(platform.id) && <CheckCircle2 className="w-3 h-3 ml-auto" />}
+                        <div className={cn(
+                          "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all",
+                          selectedPlatforms.includes(platform.id) ? "bg-nexus-accent/20" : "bg-white/5 group-hover:bg-white/10"
+                        )}>
+                          <platform.icon className={cn("w-4 h-4 transition-transform group-hover:scale-110", platform.color)} />
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-tight">{platform.name}</span>
+                        {selectedPlatforms.includes(platform.id) && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" />}
                       </button>
                     ))}
                   </div>
@@ -660,36 +2238,138 @@ export const SocialControl = () => {
 
                 {selectedPlatforms.length > 0 && (
                   <div className="space-y-4">
-                    <label className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest block">Neural Platform Configs</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest block">Neural Platform Configs</label>
+                      <button 
+                        onClick={() => setShowPresetSave(!showPresetSave)}
+                        className="text-[10px] font-bold text-nexus-accent hover:text-white transition-colors flex items-center gap-1"
+                      >
+                        <Bookmark className="w-3 h-3" />
+                        PRESETS
+                      </button>
+                    </div>
+
+                    {showPresetSave && (
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text"
+                            value={newPresetName}
+                            onChange={(e) => setNewPresetName(e.target.value)}
+                            placeholder="Preset Name (e.g., Live Standard)"
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-nexus-accent/50"
+                          />
+                          <button 
+                            onClick={savePreset}
+                            disabled={!newPresetName.trim()}
+                            className="px-3 py-1.5 bg-nexus-accent text-black rounded-lg text-xs font-bold disabled:opacity-50 hover:bg-white transition-colors flex items-center gap-1"
+                          >
+                            <Save className="w-3 h-3" />
+                            SAVE
+                          </button>
+                        </div>
+
+                        {presets.length > 0 && (
+                          <div className="pt-2 border-t border-white/10">
+                            <span className="text-[10px] text-nexus-text-dim uppercase block mb-2">Saved Neural Presets</span>
+                            <div className="flex flex-wrap gap-2">
+                              {presets.map(preset => (
+                                <div key={preset.name} className="group relative">
+                                  <button 
+                                    onClick={() => loadPreset(preset.configs, preset.platforms || [])}
+                                    className="pl-3 pr-4 py-1.5 rounded-xl bg-white/10 hover:bg-nexus-accent hover:text-black transition-all text-[10px] font-bold flex items-center gap-2 border border-white/5 hover:border-nexus-accent"
+                                  >
+                                    <div className="flex -space-x-1">
+                                      {(preset.platforms || []).map(pid => {
+                                        const P = PLATFORMS.find(p => p.id === pid);
+                                        return P ? <P.icon key={pid} className="w-2.5 h-2.5" /> : null;
+                                      })}
+                                    </div>
+                                    {preset.name}
+                                  </button>
+                                  <button 
+                                    onClick={() => deletePreset(preset.name)}
+                                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                  >
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="space-y-3">
                       {selectedPlatforms.includes("twitter") && (
-                        <div className="p-4 rounded-2xl bg-blue-400/5 border border-blue-400/10 space-y-3">
-                          <div className="flex items-center gap-2 text-blue-400">
+                        <div className="p-4 rounded-2xl bg-blue-400/5 border border-blue-400/10 space-y-3 relative overflow-hidden group">
+                          <div className="flex items-center gap-2 text-blue-400 mb-2">
                             <Twitter className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Twitter / X Settings</span>
+                            <span className="text-xs font-bold uppercase tracking-wider">Twitter / X Protocol</span>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-nexus-text-dim uppercase">Character Limit</span>
+
+                          <PlatformPresetManager platform="twitter" color="blue-400" />
+
+                          <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                            <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Protocol Mode</span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setPlatformConfigs(prev => ({ ...prev, twitter: { ...prev.twitter, thread: false } }))}
+                                className={cn(
+                                  "px-2 py-1 rounded text-[10px] border transition-all",
+                                  !platformConfigs.twitter.thread ? "bg-blue-400/20 border-blue-400 text-blue-400" : "bg-white/5 border-white/5 text-nexus-text-dim"
+                                )}
+                              >
+                                SINGLE TWEET
+                              </button>
+                              <button
+                                onClick={() => setPlatformConfigs(prev => ({ ...prev, twitter: { ...prev.twitter, thread: true } }))}
+                                className={cn(
+                                  "px-2 py-1 rounded text-[10px] border transition-all",
+                                  platformConfigs.twitter.thread ? "bg-blue-400/20 border-blue-400 text-blue-400" : "bg-white/5 border-white/5 text-nexus-text-dim"
+                                )}
+                              >
+                                NEURAL THREAD
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Character Limit</span>
                             <select 
                               value={platformConfigs.twitter.charLimit}
                               onChange={(e) => setPlatformConfigs(prev => ({ ...prev, twitter: { ...prev.twitter, charLimit: parseInt(e.target.value) } }))}
-                              className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none"
+                              className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none hover:border-blue-400/30 transition-all"
                             >
                               <option value="280">280 (Standard)</option>
                               <option value="4000">4000 (Premium)</option>
                             </select>
                           </div>
+
+                          <CallbackSystemControl platform="twitter" />
                         </div>
                       )}
 
                       {selectedPlatforms.includes("instagram") && (
-                        <div className="p-4 rounded-2xl bg-pink-500/5 border border-pink-500/10 space-y-3">
-                          <div className="flex items-center gap-2 text-pink-500">
-                            <Instagram className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Instagram Settings</span>
+                        <div className="p-4 rounded-2xl bg-pink-500/5 border border-pink-500/10 space-y-3 relative overflow-hidden group">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 text-pink-500">
+                              <Instagram className="w-4 h-4" />
+                              <span className="text-xs font-bold uppercase tracking-wider">Instagram Protocol</span>
+                            </div>
+                            {connectedPlatforms.includes("instagram") && (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                                <Shield className="w-2.5 h-2.5" />
+                                <span className="text-[8px] font-bold uppercase tracking-tighter">Secure Link</span>
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-nexus-text-dim uppercase">Image Ratio</span>
+
+                          <PlatformPresetManager platform="instagram" color="pink-500" />
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Image Ratio</span>
                             <div className="flex gap-2">
                               {["1:1", "4:5", "16:9"].map(ratio => (
                                 <button
@@ -707,34 +2387,392 @@ export const SocialControl = () => {
                               ))}
                             </div>
                           </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Auto-Crop Neural Assets</span>
+                            <button
+                              onClick={() => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, autoCrop: !prev.instagram.autoCrop } }))}
+                              className={cn(
+                                "px-2 py-1 rounded text-[10px] border transition-all",
+                                platformConfigs.instagram.autoCrop 
+                                  ? "bg-pink-500/20 border-pink-500 text-pink-500" 
+                                  : "bg-white/5 border-white/5 text-nexus-text-dim"
+                              )}
+                            >
+                              {platformConfigs.instagram.autoCrop ? "ENABLED" : "DISABLED"}
+                            </button>
+                          </div>
+
+                          <CallbackSystemControl platform="instagram" />
                         </div>
                       )}
 
-                      {(selectedPlatforms.includes("linkedin") || selectedPlatforms.includes("facebook")) && (
-                        <div className="p-4 rounded-2xl bg-blue-600/5 border border-blue-600/10 space-y-3">
-                          <div className="flex items-center gap-2 text-blue-600">
-                            <Settings2 className="w-4 h-4" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Network Visibility</span>
-                          </div>
+                      {selectedPlatforms.includes("youtube") && (
+                        <div className="p-4 rounded-2xl bg-red-500/5 border border-red-500/10 space-y-4">
                           <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-red-500">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                platformConfigs.youtube.isLive ? "bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" : "bg-red-500/20"
+                              )} />
+                              <Youtube className="w-4 h-4" />
+                              <span className="text-xs font-bold uppercase tracking-wider">YouTube Settings</span>
+                            </div>
+                            <button 
+                              onClick={() => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, isLive: !prev.youtube.isLive } }))}
+                              className={cn(
+                                "px-3 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-2",
+                                platformConfigs.youtube.isLive ? "bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/20" : "bg-white/5 border-white/5 text-nexus-text-dim hover:border-red-500/30"
+                              )}
+                            >
+                              <Play className="w-3 h-3" />
+                              LIVE STREAM
+                            </button>
+                          </div>
+                          
+                          {platformConfigs.youtube.isLive && (
+                            <div className="space-y-4 p-4 bg-black/20 rounded-xl border border-white/5 relative overflow-hidden group">
+                              <div className="absolute top-0 right-0 p-4">
+                                <button 
+                                  onClick={() => syncStreamFields("youtube")}
+                                  className="text-[9px] font-bold text-red-400 hover:text-white transition-colors flex items-center gap-1"
+                                  title="Sync from Post Title"
+                                >
+                                  <Zap className="w-3 h-3" />
+                                  SYNC
+                                </button>
+                              </div>
+
+                              <PlatformPresetManager platform="youtube" color="red-500" />
+
+                              <div className="flex items-center gap-2 pb-2 border-b border-white/5 mb-2">
+                                <Settings2 className="w-3 h-3 text-red-400" />
+                                <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Advanced Stream Settings</span>
+                              </div>
+
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                    <Type className="w-2.5 h-2.5" />
+                                    Stream Title
+                                  </label>
+                                  <input 
+                                    type="text"
+                                    value={platformConfigs.youtube.streamTitle}
+                                    onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, streamTitle: e.target.value } }))}
+                                    placeholder="Enter the broadcast title..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-red-500/30 transition-all"
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                    <AlignLeft className="w-2.5 h-2.5" />
+                                    Stream Description
+                                  </label>
+                                  <textarea 
+                                    value={platformConfigs.youtube.description}
+                                    onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, description: e.target.value } }))}
+                                    placeholder="Enter the stream description..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none h-20 resize-none focus:border-red-500/30 transition-all"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                      <Calendar className="w-2.5 h-2.5" />
+                                      Start Date
+                                    </label>
+                                    <input 
+                                      type="date"
+                                      value={platformConfigs.youtube.streamDate}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, streamDate: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-red-500/30 [color-scheme:dark]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      Start Time
+                                    </label>
+                                    <input 
+                                      type="time"
+                                      value={platformConfigs.youtube.streamTime}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, streamTime: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-red-500/30 [color-scheme:dark]"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] text-nexus-text-dim uppercase flex items-center gap-1.5 font-mono">
+                                      <Eye className="w-2.5 h-2.5" />
+                                      Visibility
+                                    </label>
+                                    <select 
+                                      value={platformConfigs.youtube.visibility}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, visibility: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-[10px] outline-none hover:border-red-500/30 transition-all cursor-pointer"
+                                    >
+                                      <option value="public">🌍 Public</option>
+                                      <option value="unlisted">🔗 Unlisted</option>
+                                      <option value="private">🔒 Private</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <label className="text-[9px] text-nexus-text-dim uppercase flex items-center gap-1.5 font-mono">
+                                      <Monitor className="w-2.5 h-2.5" />
+                                      Category
+                                    </label>
+                                    <select 
+                                      value={platformConfigs.youtube.category}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, category: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-[10px] outline-none hover:border-red-500/30 transition-all cursor-pointer"
+                                    >
+                                      <option value="Entertainment">🎬 Entertainment</option>
+                                      <option value="Education">🎓 Education</option>
+                                      <option value="Tech">💻 Tech</option>
+                                      <option value="Gaming">🎮 Gaming</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <CallbackSystemControl platform="youtube" />
+                            </div>
+                          )}
+
+                          {!platformConfigs.youtube.isLive && (
+                            <div className="space-y-4">
+                              <PlatformPresetManager platform="youtube" color="red-500" />
+                              
+                              <div className="space-y-1.5 pt-2 border-t border-white/5">
+                                <label className="text-[10px] text-nexus-text-dim uppercase font-mono">Video Description</label>
+                                <textarea 
+                                  value={platformConfigs.youtube.description}
+                                  onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, description: e.target.value } }))}
+                                  placeholder="Neural video metadata..."
+                                  className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-[10px] outline-none h-16 resize-none focus:border-red-500/30 transition-all"
+                                />
+                              </div>
+
+                              <div className="flex items-center justify-between pt-1">
+                                <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Visibility Settings</span>
+                                <select 
+                                  value={platformConfigs.youtube.visibility}
+                                  onChange={(e) => setPlatformConfigs(prev => ({ ...prev, youtube: { ...prev.youtube, visibility: e.target.value } }))}
+                                  className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none hover:border-red-500/30 transition-all"
+                                >
+                                  <option value="public">🌍 Public (Broadcast)</option>
+                                  <option value="unlisted">🔗 Unlisted</option>
+                                  <option value="private">🔒 Private</option>
+                                </select>
+                              </div>
+
+                              <CallbackSystemControl platform="youtube" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {selectedPlatforms.includes("linkedin") && (
+                        <div className="p-4 rounded-2xl bg-blue-600/5 border border-blue-600/10 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-blue-600">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                platformConfigs.linkedin.isLive ? "bg-blue-600 animate-pulse shadow-[0_0_8px_rgba(37,99,235,0.8)]" : "bg-blue-600/20"
+                              )} />
+                              <Linkedin className="w-4 h-4" />
+                              <span className="text-xs font-bold uppercase tracking-wider">LinkedIn Settings</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {connectedPlatforms.includes("linkedin") && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-green-500/10 text-green-500 border border-green-500/20">
+                                  <Shield className="w-2.5 h-2.5" />
+                                  <span className="text-[8px] font-bold uppercase tracking-tighter">Secure Link</span>
+                                </div>
+                              )}
+                              <button 
+                                onClick={() => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, isLive: !prev.linkedin.isLive } }))}
+                                className={cn(
+                                  "px-3 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-2",
+                                  platformConfigs.linkedin.isLive ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20" : "bg-white/5 border-white/5 text-nexus-text-dim hover:border-blue-600/30"
+                                )}
+                              >
+                                <Play className="w-3 h-3" />
+                                LIVE STREAM
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {platformConfigs.linkedin.isLive && (
+                            <div className="space-y-4 p-4 bg-black/20 rounded-xl border border-white/5 relative overflow-hidden group">
+                              <div className="absolute top-0 right-0 p-4">
+                                <button 
+                                  onClick={() => syncStreamFields("linkedin")}
+                                  className="text-[9px] font-bold text-blue-400 hover:text-white transition-colors flex items-center gap-1"
+                                  title="Sync from Post Title"
+                                >
+                                  <Zap className="w-3 h-3" />
+                                  SYNC
+                                </button>
+                              </div>
+
+                              <PlatformPresetManager platform="linkedin" color="blue-600" />
+
+                              <div className="flex items-center gap-2 pb-2 border-b border-white/5 mb-2">
+                                <Settings2 className="w-3 h-3 text-blue-400" />
+                                <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Advanced Event Settings</span>
+                              </div>
+                              
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                    <Type className="w-2.5 h-2.5" />
+                                    Event Title
+                                  </label>
+                                  <input 
+                                    type="text"
+                                    value={platformConfigs.linkedin.streamTitle}
+                                    onChange={(e) => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, streamTitle: e.target.value } }))}
+                                    placeholder="Enter official event title..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-blue-600/30 transition-all"
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                    <AlignLeft className="w-2.5 h-2.5" />
+                                    Event Description
+                                  </label>
+                                  <textarea 
+                                    value={platformConfigs.linkedin.description}
+                                    onChange={(e) => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, description: e.target.value } }))}
+                                    placeholder="Professional event details..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none h-20 resize-none focus:border-blue-600/30 transition-all"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                      <Calendar className="w-2.5 h-2.5" />
+                                      Start Date
+                                    </label>
+                                    <input 
+                                      type="date"
+                                      value={platformConfigs.linkedin.streamDate}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, streamDate: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-blue-600/30 [color-scheme:dark]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      Start Time
+                                    </label>
+                                    <input 
+                                      type="time"
+                                      value={platformConfigs.linkedin.streamTime}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, streamTime: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-blue-600/30 [color-scheme:dark]"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="pt-1">
+                                  <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                    <Eye className="w-2.5 h-2.5" />
+                                    Visibility Setting
+                                  </label>
+                                  <select 
+                                    value={platformConfigs.linkedin.visibility}
+                                    onChange={(e) => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, visibility: e.target.value } }))}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-[10px] outline-none hover:border-blue-600/30 transition-all cursor-pointer"
+                                  >
+                                    <option value="Public">🌍 Public</option>
+                                    <option value="Connections Only">👥 Connections Only</option>
+                                    <option value="Private">🔒 Private</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <CallbackSystemControl platform="linkedin" />
+                            </div>
+                          )}
+
+                          {!platformConfigs.linkedin.isLive && (
+                            <div className="space-y-3">
+                               <PlatformPresetManager platform="linkedin" color="blue-600" />
+                               
+                               <div className="space-y-1.5 pt-2 border-t border-white/5">
+                                 <label className="text-[10px] text-nexus-text-dim uppercase font-mono">Post Description</label>
+                                 <textarea 
+                                   value={platformConfigs.linkedin.description}
+                                   onChange={(e) => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, description: e.target.value } }))}
+                                   placeholder="Professional context..."
+                                   className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-[10px] outline-none h-16 resize-none focus:border-blue-600/30 transition-all"
+                                 />
+                               </div>
+
+                               <div className="flex items-center justify-between pt-1">
+                                 <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Visibility Level</span>
+                                 <select 
+                                   value={platformConfigs.linkedin.visibility}
+                                   onChange={(e) => setPlatformConfigs(prev => ({ ...prev, linkedin: { ...prev.linkedin, visibility: e.target.value } }))}
+                                   className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none hover:border-blue-600/30 transition-all"
+                                 >
+                                   <option value="Public">🌍 Public</option>
+                                   <option value="Connections Only">👥 Connections Only</option>
+                                 </select>
+                               </div>
+
+                               <CallbackSystemControl platform="linkedin" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {selectedPlatforms.includes("facebook") && (
+                        <div className="p-4 rounded-2xl bg-blue-600/5 border border-blue-600/10 space-y-3 relative overflow-hidden group">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 text-blue-600">
+                              <Facebook className="w-4 h-4" />
+                              <span className="text-xs font-bold uppercase tracking-wider">Facebook Protocol</span>
+                            </div>
+                            {connectedPlatforms.includes("facebook") && (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                                <Shield className="w-2.5 h-2.5" />
+                                <span className="text-[8px] font-bold uppercase tracking-tighter">Secure Link</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <PlatformPresetManager platform="facebook" color="blue-600" />
+
+                          <div className="flex items-center justify-between pt-2 border-t border-white/5">
                             <span className="text-[10px] text-nexus-text-dim uppercase">Audience Scope</span>
                             <select 
-                              value={selectedPlatforms.includes("linkedin") ? platformConfigs.linkedin.visibility : platformConfigs.facebook.audience}
+                              value={platformConfigs.facebook.audience}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setPlatformConfigs(prev => ({
                                   ...prev,
-                                  linkedin: { ...prev.linkedin, visibility: val },
                                   facebook: { ...prev.facebook, audience: val }
                                 }));
                               }}
                               className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] outline-none"
                             >
-                              <option value="Public">Public / Anyone</option>
-                              <option value="Connections">Connections / Friends</option>
-                              <option value="Private">Private (Draft)</option>
+                              <option value="Public">Public</option>
+                              <option value="Friends">Friends</option>
+                              <option value="Private">Only Me</option>
                             </select>
                           </div>
+
+                          <CallbackSystemControl platform="facebook" />
                         </div>
                       )}
                     </div>
@@ -756,20 +2794,33 @@ export const SocialControl = () => {
                 >
                   CANCEL
                 </button>
-                <button 
-                  onClick={() => handleSave("Draft")}
-                  disabled={!newPostTitle || selectedPlatforms.length === 0}
-                  className="px-6 py-2 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all disabled:opacity-50"
-                >
-                  SAVE DRAFT
-                </button>
-                <button 
-                  onClick={() => handleSave("Scheduled")}
-                  disabled={!newPostTitle || selectedPlatforms.length === 0 || !scheduleDate || !scheduleTime}
-                  className="px-8 py-2 bg-nexus-accent text-black font-bold rounded-xl hover:bg-white transition-all disabled:opacity-50"
-                >
-                  SCHEDULE POST
-                </button>
+                {(selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive) ? (
+                  <button 
+                    onClick={initiateLiveStream}
+                    disabled={isInitiatingLive || !newPostTitle || (selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive && !connectedPlatforms.includes("google")) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive && !connectedPlatforms.includes("linkedin"))}
+                    className="px-8 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-white hover:text-black transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isInitiatingLive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                    INITIATE NEURAL STREAM
+                  </button>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => handleSave("Draft")}
+                      disabled={!newPostTitle || selectedPlatforms.length === 0}
+                      className="px-6 py-2 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition-all disabled:opacity-50"
+                    >
+                      SAVE DRAFT
+                    </button>
+                    <button 
+                      onClick={() => handleSave("Scheduled")}
+                      disabled={!newPostTitle || selectedPlatforms.length === 0 || !scheduleDate || !scheduleTime}
+                      className="px-8 py-2 bg-nexus-accent text-black font-bold rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                    >
+                      SCHEDULE POST
+                    </button>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>
