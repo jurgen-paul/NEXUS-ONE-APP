@@ -19,9 +19,27 @@ import {
   Globe,
   Activity,
   Cpu,
-  Terminal
+  Terminal,
+  List,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  ShieldAlert
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { 
+  format, 
+  addMonths, 
+  subMonths, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  isSameMonth, 
+  isSameDay, 
+  addDays, 
+  eachDayOfInterval 
+} from "date-fns";
 
 interface Widget {
   id: string;
@@ -262,6 +280,167 @@ const getWidgetIcon = (type: string) => {
   }
 };
 
+const AppointmentsWidget = () => {
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  // Mock appointments with dates
+  const appointments = [
+    { id: 1, date: new Date(), time: "09:00", title: "Global Sync", subtitle: "Strategic Ops", icon: Globe },
+    { id: 2, date: new Date(), time: "11:30", title: "Product Demo", subtitle: "Nexus V5 Preview", icon: Zap },
+    { id: 3, date: new Date(), time: "15:00", title: "Investor Brief", subtitle: "Growth Metrics", icon: TrendingUp },
+    { id: 4, date: addDays(new Date(), 1), time: "10:00", title: "Marketing Review", subtitle: "Q3 Campaign", icon: Share2 },
+    { id: 5, date: addDays(new Date(), 2), time: "14:00", title: "Security Audit", subtitle: "Nexus Core", icon: ShieldAlert },
+  ];
+
+  const renderHeader = () => {
+    return (
+      <div className="p-5 border-b border-white/5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-cyan-400" />
+          <h3 className="text-xs font-bold uppercase tracking-widest">Neural Meetings</h3>
+        </div>
+        <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg">
+          <button 
+            onClick={() => setViewMode('list')}
+            className={cn(
+              "p-1.5 rounded-md transition-all",
+              viewMode === 'list' ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+            )}
+          >
+            <List className="w-3 h-3" />
+          </button>
+          <button 
+            onClick={() => setViewMode('calendar')}
+            className={cn(
+              "p-1.5 rounded-md transition-all",
+              viewMode === 'calendar' ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+            )}
+          >
+            <LayoutDashboard className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCalendar = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+
+    const dateFormat = "MMMM yyyy";
+    const days = ["S", "M", "T", "W", "T", "F", "S"];
+
+    const calendarDays = eachDayOfInterval({
+      start: startDate,
+      end: endDate,
+    });
+
+    return (
+      <div className="p-5 space-y-4 flex-1">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-[10px] font-mono font-bold text-nexus-text-dim uppercase">
+            {format(currentMonth, dateFormat)}
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-1 hover:text-nexus-accent transition-colors">
+              <ChevronLeft className="w-3 h-3" />
+            </button>
+            <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-1 hover:text-nexus-accent transition-colors">
+              <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+          {days.map((day, i) => (
+            <div key={i} className="text-[9px] font-mono text-nexus-text-dim/50 font-bold">{day}</div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {calendarDays.map((day, i) => {
+            const hasAppointment = appointments.some(a => isSameDay(a.date, day));
+            const isCurrentMonth = isSameMonth(day, monthStart);
+            const isToday = isSameDay(day, new Date());
+            const isSelected = isSameDay(day, selectedDate);
+
+            return (
+              <div 
+                key={i} 
+                onClick={() => setSelectedDate(day)}
+                className={cn(
+                  "relative aspect-square flex items-center justify-center text-[10px] rounded-lg cursor-pointer transition-all border",
+                  !isCurrentMonth ? "opacity-20 pointer-events-none" : "hover:bg-white/5",
+                  isToday ? "border-nexus-accent/50 text-nexus-accent" : "border-transparent",
+                  isSelected ? "bg-nexus-accent text-black font-bold" : "text-white/60"
+                )}
+              >
+                {format(day, "d")}
+                {hasAppointment && (
+                  <div className={cn(
+                    "absolute bottom-1 w-1 h-1 rounded-full",
+                    isSelected ? "bg-black" : "bg-nexus-accent"
+                  )} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="pt-4 border-t border-white/5 space-y-2">
+          <p className="text-[9px] font-mono text-nexus-text-dim uppercase">Agenda: {format(selectedDate, "MMM d")}</p>
+          <div className="space-y-1">
+            {appointments.filter(a => isSameDay(a.date, selectedDate)).length > 0 ? (
+              appointments.filter(a => isSameDay(a.date, selectedDate)).map(a => (
+                <div key={a.id} className="flex items-center gap-2 text-[10px]">
+                  <span className="text-nexus-accent font-mono">{a.time}</span>
+                  <span className="text-white/80">{a.title}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-[9px] italic text-nexus-text-dim">No events today</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderList = () => {
+    return (
+      <div className="p-5 space-y-3 flex-1 overflow-y-auto max-h-[300px]">
+        {appointments.map((a, i) => (
+          <div key={i} className="flex gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer group">
+            <div className="flex flex-col items-center justify-center border-r border-white/5 pr-4">
+              <span className="text-[10px] font-bold text-nexus-accent font-mono">{a.time}</span>
+              <div className="w-1 h-1 rounded-full bg-nexus-accent mt-1 shadow-[0_0_5px_rgba(5,255,161,1)]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-bold">{a.title}</h4>
+                <span className="text-[8px] text-nexus-text-dim uppercase font-mono px-1 border border-white/10 rounded">{format(a.date, "MMM d")}</span>
+              </div>
+              <p className="text-[10px] text-nexus-text-dim">{a.subtitle}</p>
+            </div>
+            <a.icon className="w-3 h-3 ml-auto text-nexus-text-dim opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {renderHeader()}
+      {viewMode === 'list' ? renderList() : renderCalendar()}
+    </div>
+  );
+};
+
 const renderWidgetContent = (widget: Widget, extra: any = {}) => {
   switch (widget.type) {
     case "diagnostics":
@@ -412,35 +591,7 @@ const renderWidgetContent = (widget: Widget, extra: any = {}) => {
         </>
       );
     case "appointments":
-      return (
-        <>
-          <div className="p-5 border-b border-white/5 flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-cyan-400" />
-              Neural Meetings
-            </h3>
-            <Plus className="w-3 h-3 text-nexus-text-dim hover:text-white cursor-pointer" />
-          </div>
-          <div className="p-5 space-y-3 flex-1">
-            {[
-              { time: "09:00", title: "Global Sync", subtitle: "Strategic Ops", icon: Globe },
-              { time: "11:30", title: "Product Demo", subtitle: "Nexus V5 Preview", icon: Zap },
-              { time: "15:00", title: "Investor Brief", subtitle: "Growth Metrics", icon: TrendingUp },
-            ].map((a, i) => (
-              <div key={i} className="flex gap-4 p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer">
-                <div className="flex flex-col items-center justify-center border-r border-white/5 pr-4">
-                  <span className="text-[10px] font-bold text-nexus-accent font-mono">{a.time}</span>
-                  <div className="w-1 h-1 rounded-full bg-nexus-accent mt-1 shadow-[0_0_5px_rgba(5,255,161,1)]" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold">{a.title}</h4>
-                  <p className="text-[10px] text-nexus-text-dim">{a.subtitle}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      );
+      return <AppointmentsWidget />;
     case "tasks":
       return (
         <>
