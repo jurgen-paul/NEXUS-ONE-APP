@@ -36,6 +36,8 @@ import { SocialControl } from "./components/SocialControl";
 import { DeploymentHub } from "./components/DeploymentHub";
 import { AppSettings } from "./components/AppSettings";
 import { SalesIntelligence } from "./components/SalesIntelligence";
+import { ARInterface } from "./components/ARInterface";
+import { AIAssistant } from "./components/AIAssistant";
 
 
 const SmartDocs = () => (
@@ -117,6 +119,8 @@ export default function App() {
     { id: Module.DOCS, label: "Smart Forms", icon: FileText },
     { id: Module.COMMUNICATION, label: "Mail Hub", icon: Mail },
     { id: Module.SALES, label: "Sales Intelligence", icon: BarChart3 },
+    { id: Module.AR_VIEW, label: "AR Interface", icon: Eye },
+    { id: Module.ASSISTANT, label: "Avatar Sync", icon: User },
   ];
 
   return (
@@ -220,9 +224,11 @@ export default function App() {
               {activeModule === Module.DOCS && <SmartDocs />}
               {activeModule === Module.DEPLOYMENT && <DeploymentHub />}
               {activeModule === Module.SALES && <SalesIntelligence />}
+              {activeModule === Module.AR_VIEW && <ARInterface />}
+              {activeModule === Module.ASSISTANT && <AIAssistant />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>

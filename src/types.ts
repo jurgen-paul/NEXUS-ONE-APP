@@ -10,6 +10,8 @@ export enum Module {
   COMMUNICATION = "COMMUNICATION",
   SALES = "SALES",
   SETTINGS = "SETTINGS",
+  AR_VIEW = "AR_VIEW",
+  ASSISTANT = "ASSISTANT",
 }
 
 export interface NavItem {
