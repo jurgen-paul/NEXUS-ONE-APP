@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   LayoutDashboard, 
@@ -105,6 +105,16 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label:
 );
 
 export default function App() {
+  useEffect(() => {
+    const handleNavigate = (e: any) => {
+      if (Object.values(Module).includes(e.detail)) {
+        setActiveModule(e.detail as Module);
+      }
+    };
+    window.addEventListener("nexus-navigate", handleNavigate);
+    return () => window.removeEventListener("nexus-navigate", handleNavigate);
+  }, []);
+
   const [activeModule, setActiveModule] = useState<Module>(Module.DASHBOARD);
   const [isSidebarOpen] = useState(true);
 
