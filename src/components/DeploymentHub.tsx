@@ -21,7 +21,7 @@ import { AppStoreIntegration } from "./AppStoreIntegration";
 interface Deployment {
   id: string;
   name: string;
-  type: "Website" | "Social" | "Document" | "Campaign";
+  type: "Website" | "Social" | "Document" | "Campaign" | "Mobile App";
   status: "Live" | "Syncing" | "Pending";
   url: string;
   timestamp: string;
@@ -37,6 +37,24 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
     url: "https://quantum-port.nexus.one", 
     timestamp: "2 hours ago",
     performance: "99.9% Uptime"
+  },
+  { 
+    id: "5", 
+    name: "Nexus Mobile Core", 
+    type: "Mobile App", 
+    status: "Live", 
+    url: "Google Play Store", 
+    timestamp: "2 days ago",
+    performance: "842K Installs"
+  },
+  { 
+    id: "6", 
+    name: "Nexus iOS Core", 
+    type: "Mobile App", 
+    status: "Syncing", 
+    url: "Apple App Store", 
+    timestamp: "1 hour ago",
+    performance: "Processing v2.5.0"
   },
   { 
     id: "2", 
@@ -159,8 +177,8 @@ export const DeploymentHub = () => {
                   Active Deployments
                 </h3>
                 <div className="flex gap-2">
-                  {["All", "Websites", "Social", "Docs"].map((filter) => (
-                    <button key={filter} className="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-colors">
+                  {["All", "Websites", "Mobile Apps", "Social", "Docs"].map((filter) => (
+                    <button key={filter} className="px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-white/5 hover:bg-white/10 transition-colors text-nexus-text-dim hover:text-white">
                       {filter}
                     </button>
                   ))}

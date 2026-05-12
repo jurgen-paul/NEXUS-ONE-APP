@@ -20,7 +20,7 @@ import {
   Bookmark
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { GoogleGenAI, Type as GenAIType } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
   AreaChart, 
   Area, 
@@ -127,6 +127,9 @@ export const MarketingSuite = () => {
     localStorage.setItem("nexus_marketing_presets", JSON.stringify(newPresets));
   };
 
+  const [isAuditGenerating, setIsAuditGenerating] = useState(false);
+  const [auditResults, setAuditResults] = useState<{ title: string; desc: string; action: string }[]>([]);
+
   const generateCampaign = async () => {
     if (!prompt.trim() || isGenerating) return;
     setIsGenerating(true);
@@ -135,39 +138,39 @@ export const MarketingSuite = () => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [{ role: "user", parts: [{ text: `Generate a marketing campaign strategy for: "${prompt}". 
+        model: "gemini-3-flash-preview",
+        contents: [{ role: "user", parts: [{ text: `Generate a hyper-specialized marketing campaign strategy for: "${prompt}". 
         Include:
-        1. A campaign name.
-        2. A primary objective.
-        3. 3 social media posts (platform and content).
-        4. Budget allocation across 3-4 platforms (platform, percentage, and a sample amount assuming $10,000 total).` }] }],
+        1. A campaign name (creative and unique).
+        2. A primary objective focused on ROI and scale.
+        3. 3 social media posts (specify platform and generate high-conversion content).
+        4. Detailed budget allocation across 4 specific digital platforms (platform, percentage, and a sample amount assuming $10,000 total).` }] }],
         config: {
           responseMimeType: "application/json",
           responseSchema: {
-            type: GenAIType.OBJECT,
+            type: Type.OBJECT,
             properties: {
-              name: { type: GenAIType.STRING },
-              objective: { type: GenAIType.STRING },
+              name: { type: Type.STRING },
+              objective: { type: Type.STRING },
               posts: {
-                type: GenAIType.ARRAY,
+                type: Type.ARRAY,
                 items: {
-                  type: GenAIType.OBJECT,
+                  type: Type.OBJECT,
                   properties: {
-                    platform: { type: GenAIType.STRING },
-                    content: { type: GenAIType.STRING }
+                    platform: { type: Type.STRING },
+                    content: { type: Type.STRING }
                   },
                   required: ["platform", "content"]
                 }
               },
               budget: {
-                type: GenAIType.ARRAY,
+                type: Type.ARRAY,
                 items: {
-                  type: GenAIType.OBJECT,
+                  type: Type.OBJECT,
                   properties: {
-                    platform: { type: GenAIType.STRING },
-                    percentage: { type: GenAIType.NUMBER },
-                    amount: { type: GenAIType.STRING }
+                    platform: { type: Type.STRING },
+                    percentage: { type: Type.NUMBER },
+                    amount: { type: Type.STRING }
                   },
                   required: ["platform", "percentage", "amount"]
                 }
@@ -178,12 +181,52 @@ export const MarketingSuite = () => {
         }
       });
 
-      const data = JSON.parse(response.text || "{}");
+      const resultText = response.text || "{}";
+      const data = JSON.parse(resultText);
       setCampaign(data);
+      // Automatically trigger an audit for the new campaign
+      runStrategicAudit(data);
     } catch (error) {
       console.error("Campaign Generation Error:", error);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const runStrategicAudit = async (campaignData: Campaign) => {
+    setIsAuditGenerating(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ 
+          role: "user", 
+          parts: [{ text: `Perform a deep neural audit on this marketing campaign: ${JSON.stringify(campaignData)}. 
+          Provide 3 distinct optimization recommendations based on market trends for 2026.
+          Return a JSON array of objects with keys: title, desc, action.` }] 
+        }],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                desc: { type: Type.STRING },
+                action: { type: Type.STRING }
+              },
+              required: ["title", "desc", "action"]
+            }
+          }
+        }
+      });
+      const auditText = response.text || "[]";
+      setAuditResults(JSON.parse(auditText));
+    } catch (error) {
+      console.error("Audit Generation Error:", error);
+    } finally {
+      setIsAuditGenerating(false);
     }
   };
 
@@ -546,21 +589,55 @@ export const MarketingSuite = () => {
       </div>
 
       <div className="glass p-6 rounded-2xl">
-        <h3 className="text-lg font-display font-semibold mb-4">AI Optimization Recommendations</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { title: "Budget Allocation", desc: "Shift 15% of budget from Facebook to TikTok for 2.4x higher ROI.", action: "Apply Now" },
-            { title: "Creative Refresh", desc: "Ad set 'Alpha-02' is showing fatigue. Generate new visual variants.", action: "Generate" },
-          ].map((rec, i) => (
-            <div key={i} className="p-4 rounded-xl bg-white/5 border border-white/10 flex justify-between items-center group">
-              <div>
-                <h4 className="text-sm font-bold text-nexus-accent">{rec.title}</h4>
-                <p className="text-xs text-nexus-text-dim mt-1">{rec.desc}</p>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-display font-semibold flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-nexus-accent" />
+            Neural Optimization Recommendations
+          </h3>
+          {campaign && (
+            <button 
+              onClick={() => runStrategicAudit(campaign)}
+              disabled={isAuditGenerating}
+              className="px-3 py-1.5 glass border border-nexus-accent/30 text-[10px] font-bold text-nexus-accent rounded-lg flex items-center gap-2 hover:bg-nexus-accent hover:text-black transition-all disabled:opacity-50"
+            >
+              {isAuditGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+              REFRESH AUDIT
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isAuditGenerating && auditResults.length === 0 ? (
+            <div className="col-span-full py-12 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl">
+              <Loader2 className="w-8 h-8 text-nexus-accent animate-spin mb-4" />
+              <p className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest">Running Predictive Neural Audit...</p>
+            </div>
+          ) : (auditResults.length > 0 ? auditResults : [
+            { title: "Target Expansion", desc: "Neuro-targeting suggests a high resonance with minimalist lifestyle segments in EU-West.", action: "Explore" },
+            { title: "Creative Synergy", desc: "Video-first strategies on vertical platforms are showing 40% higher retention rates today.", action: "Optimize" },
+            { title: "Budget Efficiency", desc: "CPM on secondary networks is dropping. Re-allocating 5% could yield 2k more impressions.", action: "Adjust" },
+          ]).map((rec, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="p-5 rounded-xl bg-white/5 border border-white/10 flex flex-col justify-between group relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-3 opacity-5 group-hover:opacity-20 transition-opacity">
+                <Target className="w-12 h-12" />
               </div>
-              <button className="text-xs font-bold px-3 py-1.5 rounded-lg border border-nexus-accent/30 hover:bg-nexus-accent hover:text-black transition-all">
+              <div className="mb-4">
+                <h4 className="text-sm font-bold text-nexus-accent flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-nexus-accent" />
+                  {rec.title}
+                </h4>
+                <p className="text-xs text-nexus-text-dim mt-2 leading-relaxed">{rec.desc}</p>
+              </div>
+              <button className="w-full text-[10px] font-bold py-2 rounded-lg border border-white/10 hover:border-nexus-accent/50 hover:text-nexus-accent transition-all uppercase tracking-widest">
                 {rec.action}
               </button>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

@@ -24,7 +24,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  ShieldAlert
+  ShieldAlert,
+  Inbox,
+  Shield
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { 
@@ -47,7 +49,18 @@ interface Widget {
   title: string;
   isVisible: boolean;
   order: number;
+  moduleId?: string; // For pinned modules
 }
+
+const PINNABLE_MODULES = [
+  { id: "SOCIAL", name: "Social Control", icon: Share2, metric: "Reach: 2.4M", trend: "+12%" },
+  { id: "MARKETING", name: "Marketing Suite", icon: Zap, metric: "ROI: 4.2x", trend: "+5%" },
+  { id: "SALES", name: "Sales Intelligence", icon: BarChart3, metric: "Pipeline: $1.2M", trend: "+18%" },
+  { id: "AI_ENGINE", name: "AI Engine", icon: Cpu, metric: "Ops: 12k/s", trend: "Optimal" },
+  { id: "SMART_INBOX", name: "Smart Inbox", icon: Inbox, metric: "Unread: 12", trend: "High Priority" },
+  { id: "CLOUD_CONFIG", name: "Cloud Config", icon: Shield, metric: "Params: 4", trend: "Secure" },
+  { id: "CREATOR", name: "Insta-Builder", icon: Layout, metric: "Drafts: 8", trend: "Active" },
+];
 
 const DEFAULT_WIDGETS: Widget[] = [
   { id: "stats", type: "stats", title: "Core Metrics", isVisible: true, order: 0 },
@@ -56,6 +69,8 @@ const DEFAULT_WIDGETS: Widget[] = [
   { id: "sales", type: "sales", title: "Sales Pipeline", isVisible: true, order: 3 },
   { id: "appointments", type: "appointments", title: "Upcoming Appointments", isVisible: true, order: 4 },
   { id: "tasks", type: "tasks", title: "Task Reminders", isVisible: true, order: 5 },
+  { id: "pin_social", type: "pinned_module", title: "Social Control", isVisible: false, order: 6, moduleId: "SOCIAL" },
+  { id: "pin_marketing", type: "pinned_module", title: "Marketing Suite", isVisible: false, order: 7, moduleId: "MARKETING" },
 ];
 
 const STORAGE_KEY = "nexus_dashboard_widgets";
@@ -100,6 +115,23 @@ export const CustomDashboard = () => {
 
   const toggleWidget = (id: string) => {
     setWidgets(prev => prev.map(w => w.id === id ? { ...w, isVisible: !w.isVisible } : w));
+  };
+
+  const addPinnedModule = (module: typeof PINNABLE_MODULES[0]) => {
+    const id = `pin_${module.id.toLowerCase()}`;
+    if (widgets.find(w => w.id === id)) {
+      toggleWidget(id);
+      return;
+    }
+    const newWidget: Widget = {
+      id,
+      type: "pinned_module",
+      title: module.name,
+      isVisible: true,
+      order: widgets.length,
+      moduleId: module.id
+    };
+    setWidgets(prev => [...prev, newWidget]);
   };
 
   const moveWidget = (id: string, direction: 'up' | 'down') => {
@@ -209,12 +241,12 @@ export const CustomDashboard = () => {
                           "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
                           widget.isVisible ? "bg-nexus-accent/20 text-nexus-accent" : "bg-white/5 text-nexus-text-dim"
                         )}>
-                          {getWidgetIcon(widget.type)}
+                          {getWidgetIcon(widget.type, widget.moduleId)}
                         </div>
                         <div>
                           <h4 className="font-bold text-sm tracking-tight">{widget.title}</h4>
                           <p className="text-[10px] text-nexus-text-dim uppercase font-mono tracking-tighter">
-                            Module ID: {widget.id.toUpperCase()}
+                            {widget.type === "pinned_module" ? `Pinned Module: ${widget.moduleId}` : `Module ID: ${widget.id.toUpperCase()}`}
                           </p>
                         </div>
                       </div>
@@ -250,6 +282,31 @@ export const CustomDashboard = () => {
                     </div>
                   ))}
                 </div>
+
+                <div className="pt-6 border-t border-white/5">
+                  <p className="text-xs text-nexus-text-dim font-mono uppercase tracking-widest mb-4">Pin New Neural Modules</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {PINNABLE_MODULES.map((module) => {
+                      const isPinned = widgets.some(w => w.moduleId === module.id && w.isVisible);
+                      return (
+                        <button
+                          key={module.id}
+                          onClick={() => addPinnedModule(module)}
+                          className={cn(
+                            "flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                            isPinned 
+                              ? "bg-nexus-accent/10 border-nexus-accent/30 text-nexus-accent" 
+                              : "bg-white/5 border-white/5 text-nexus-text-dim hover:border-white/10 hover:text-white"
+                          )}
+                        >
+                          <module.icon className="w-4 h-4" />
+                          <span className="text-[10px] font-bold uppercase tracking-tight">{module.name}</span>
+                          {isPinned && <CheckSquare className="w-3 h-3 ml-auto" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="p-6 bg-white/5 flex justify-end">
@@ -268,7 +325,11 @@ export const CustomDashboard = () => {
   );
 };
 
-const getWidgetIcon = (type: string) => {
+const getWidgetIcon = (type: string, moduleId?: string) => {
+  if (type === "pinned_module" && moduleId) {
+    const module = PINNABLE_MODULES.find(m => m.id === moduleId);
+    if (module) return <module.icon className="w-5 h-5" />;
+  }
   switch (type) {
     case "stats": return <TrendingUp className="w-5 h-5" />;
     case "diagnostics": return <Activity className="w-5 h-5" />;
@@ -622,6 +683,32 @@ const renderWidgetContent = (widget: Widget, extra: any = {}) => {
             </button>
           </div>
         </>
+      );
+    case "pinned_module":
+      const moduleInfo = PINNABLE_MODULES.find(m => m.id === widget.moduleId);
+      if (!moduleInfo) return null;
+      return (
+        <div className="p-6 flex flex-col h-full justify-between group cursor-pointer hover:bg-nexus-accent/5 transition-all">
+          <div className="flex items-start justify-between">
+            <div className="p-3 rounded-2xl bg-nexus-accent/10 text-nexus-accent group-hover:scale-110 transition-transform">
+              <moduleInfo.icon className="w-6 h-6" />
+            </div>
+            <ArrowUpRight className="w-4 h-4 text-nexus-text-dim opacity-40 group-hover:text-nexus-accent transition-colors" />
+          </div>
+          <div className="mt-4">
+            <h3 className="text-lg font-display font-bold text-white mb-1">{moduleInfo.name}</h3>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-mono text-nexus-accent">{moduleInfo.metric}</p>
+              <span className="text-[9px] font-bold text-nexus-text-dim uppercase tracking-tighter">{moduleInfo.trend}</span>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+            <span className="text-[8px] text-nexus-text-dim uppercase font-mono tracking-widest">Neural Link Active</span>
+            <div className="flex gap-0.5">
+              {[1, 2, 3].map(i => <div key={i} className="w-1 h-3 bg-nexus-accent/20 rounded-full" />)}
+            </div>
+          </div>
+        </div>
       );
     default:
       return <div className="p-10 text-center text-nexus-text-dim uppercase font-mono text-xs">Module under maintenance</div>;

@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   FilePlus,
   Download,
-  Eye
+  Eye,
+  Inbox,
+  Shield
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Module } from "@/src/types";
@@ -38,6 +40,8 @@ import { AppSettings } from "./components/AppSettings";
 import { SalesIntelligence } from "./components/SalesIntelligence";
 import { ARInterface } from "./components/ARInterface";
 import { AIAssistant } from "./components/AIAssistant";
+import { SmartInbox } from "./components/SmartInbox";
+import { CloudConfig } from "./components/CloudConfig";
 
 
 const SmartDocs = () => (
@@ -131,6 +135,8 @@ export default function App() {
     { id: Module.SALES, label: "Sales Intelligence", icon: BarChart3 },
     { id: Module.AR_VIEW, label: "AR Interface", icon: Eye },
     { id: Module.ASSISTANT, label: "Avatar Sync", icon: User },
+    { id: Module.SMART_INBOX, label: "Smart Inbox", icon: Inbox },
+    { id: Module.CLOUD_CONFIG, label: "Cloud Parameters", icon: Shield },
   ];
 
   return (
@@ -236,9 +242,11 @@ export default function App() {
               {activeModule === Module.SALES && <SalesIntelligence />}
               {activeModule === Module.AR_VIEW && <ARInterface />}
               {activeModule === Module.ASSISTANT && <AIAssistant />}
+              {activeModule === Module.SMART_INBOX && <SmartInbox />}
+              {activeModule === Module.CLOUD_CONFIG && <CloudConfig />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>

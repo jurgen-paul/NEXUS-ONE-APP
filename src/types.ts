@@ -12,6 +12,8 @@ export enum Module {
   SETTINGS = "SETTINGS",
   AR_VIEW = "AR_VIEW",
   ASSISTANT = "ASSISTANT",
+  SMART_INBOX = "SMART_INBOX",
+  CLOUD_CONFIG = "CLOUD_CONFIG",
 }
 
 export interface NavItem {

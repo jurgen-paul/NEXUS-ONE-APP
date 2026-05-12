@@ -135,6 +135,7 @@ export const AIAssistant = () => {
       else if (command.includes("ai") || command.includes("engine")) triggerNavigation(Module.AI_ENGINE);
       else if (command.includes("deployment")) triggerNavigation(Module.DEPLOYMENT);
       else if (command.includes("forms") || command.includes("docs")) triggerNavigation(Module.DOCS);
+      else if (command.includes("cloud") || command.includes("parameter")) triggerNavigation(Module.CLOUD_CONFIG);
     }
     
     if (command.includes("set avatar to") || command.includes("change avatar to")) {
