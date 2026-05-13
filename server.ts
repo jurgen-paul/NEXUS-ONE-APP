@@ -1,16 +1,11 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
-import { fileURLToPath } from "url";
 import cookieParser from "cookie-parser";
 import axios from "axios";
 import dotenv from "dotenv";
 import crypto from "crypto";
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
@@ -33,7 +28,8 @@ async function startServer() {
       tokenUrl: "https://oauth2.googleapis.com/token",
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      scope: "https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/userinfo.profile",
+      // Comprehensive scopes for YouTube integration including video upload and channel management
+      scope: "openid email https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/userinfo.profile",
     },
     github: {
       authUrl: "https://github.com/login/oauth/authorize",
@@ -264,6 +260,7 @@ async function startServer() {
 
   // --- Vite Middleware ---
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

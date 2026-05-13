@@ -14,6 +14,7 @@ import {
   Bell,
   Search,
   User,
+  Users,
   Zap,
   Globe,
   Cloud,
@@ -42,6 +43,7 @@ import { ARInterface } from "./components/ARInterface";
 import { AIAssistant } from "./components/AIAssistant";
 import { SmartInbox } from "./components/SmartInbox";
 import { CloudConfig } from "./components/CloudConfig";
+import { CollaborationHub } from "./components/CollaborationHub";
 
 
 const SmartDocs = () => (
@@ -137,6 +139,7 @@ export default function App() {
     { id: Module.ASSISTANT, label: "Avatar Sync", icon: User },
     { id: Module.SMART_INBOX, label: "Smart Inbox", icon: Inbox },
     { id: Module.CLOUD_CONFIG, label: "Cloud Parameters", icon: Shield },
+    { id: Module.COLLABORATION, label: "Collaboration", icon: Users },
   ];
 
   return (
@@ -244,9 +247,10 @@ export default function App() {
               {activeModule === Module.ASSISTANT && <AIAssistant />}
               {activeModule === Module.SMART_INBOX && <SmartInbox />}
               {activeModule === Module.CLOUD_CONFIG && <CloudConfig />}
+              {activeModule === Module.COLLABORATION && <CollaborationHub />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>

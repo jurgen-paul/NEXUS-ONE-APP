@@ -15,7 +15,8 @@ import {
   Database,
   Globe,
   Settings,
-  Archive
+  Archive,
+  Code
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
@@ -26,6 +27,13 @@ interface ParameterVersion {
   status: "ACTIVE" | "DEPRECATED";
 }
 
+interface CloudBlueprint {
+  id: string;
+  name: string;
+  type: "TERRAFORM" | "GDM";
+  payload: string;
+}
+
 interface Parameter {
   id: string;
   projectId: string;
@@ -34,6 +42,39 @@ interface Parameter {
   currentVersion: string;
   versions: ParameterVersion[];
 }
+
+const TERRAFORM_SCRIPT = `resource "google_sql_database_instance" "instance" {
+  name             = "my-mysql-instance"
+  database_version = "MYSQL_8_0"
+  region           = "us-central1"
+  project          = "oistarian-nexus-commander"
+  deletion_protection = false
+
+  settings {
+    tier = "db-f1-micro"
+    ip_configuration {
+      ipv4_enabled = true
+    }
+  }
+}
+
+resource "google_sql_database" "database" {
+  name     = "my-database"
+  instance = google_sql_database_instance.instance.name
+  project  = "oistarian-nexus-commander"
+}
+
+resource "google_sql_user" "users" {
+  name     = "root"
+  instance = google_sql_database_instance.instance.name
+  project  = "oistarian-nexus-commander"
+  host     = "%"
+  password = "changeme123"
+}`;
+
+const INITIAL_BLUEPRINTS: CloudBlueprint[] = [
+  { id: "b1", name: "MySQL Cloud SQL Instance", type: "TERRAFORM", payload: TERRAFORM_SCRIPT }
+];
 
 const INITIAL_PARAMETERS: Parameter[] = [
   {
@@ -51,6 +92,9 @@ const INITIAL_PARAMETERS: Parameter[] = [
 export const CloudConfig = () => {
   const [parameters, setParameters] = useState<Parameter[]>(INITIAL_PARAMETERS);
   const [selectedParam, setSelectedParam] = useState<Parameter | null>(INITIAL_PARAMETERS[0]);
+  const [blueprints] = useState<CloudBlueprint[]>(INITIAL_BLUEPRINTS);
+  const [selectedBlueprint, setSelectedBlueprint] = useState<CloudBlueprint | null>(INITIAL_BLUEPRINTS[0]);
+  const [activeView, setActiveView] = useState<"params" | "blueprints">("params");
   const [copied, setCopied] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newPayload, setNewPayload] = useState("");
@@ -92,16 +136,30 @@ export const CloudConfig = () => {
     <div className="h-full flex flex-col bg-nexus-bg">
       <header className="p-8 border-b border-white/5 flex justify-between items-end">
         <div>
-          <h1 className="text-4xl font-display font-extrabold tracking-tight neon-text uppercase">Parameter Manager</h1>
+          <h1 className="text-4xl font-display font-extrabold tracking-tight neon-text uppercase">Cloud Architect</h1>
           <p className="text-nexus-text-dim mt-2 tracking-widest text-[10px] uppercase font-mono">
-            GCP Parameter Orchestration <span className="text-nexus-accent ml-2">// INFRA_SEC_v.1.0</span>
+            Infrastructure & Parameters <span className="text-nexus-accent ml-2">// ORCH_CENTER_v.2.0</span>
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="glass px-4 py-2 rounded-xl flex items-center gap-2">
-            <Globe className="w-4 h-4 text-blue-400" />
-            <span className="text-xs font-mono uppercase tracking-tighter">Region: Global</span>
-          </div>
+        <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
+          <button 
+            onClick={() => setActiveView("params")}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+              activeView === "params" ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+            )}
+          >
+            Parameters
+          </button>
+          <button 
+            onClick={() => setActiveView("blueprints")}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+              activeView === "blueprints" ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+            )}
+          >
+            Blueprints
+          </button>
         </div>
       </header>
 
@@ -119,7 +177,7 @@ export const CloudConfig = () => {
             </div>
 
             <div className="space-y-2">
-              {parameters.map((param) => (
+              {activeView === "params" ? parameters.map((param) => (
                 <button
                   key={param.id}
                   onClick={() => setSelectedParam(param)}
@@ -136,6 +194,23 @@ export const CloudConfig = () => {
                   </div>
                   <p className="text-[9px] text-nexus-text-dim truncate font-mono">{param.projectId}</p>
                 </button>
+              )) : blueprints.map((bp) => (
+                <button
+                  key={bp.id}
+                  onClick={() => setSelectedBlueprint(bp)}
+                  className={cn(
+                    "w-full text-left p-4 rounded-xl border transition-all",
+                    selectedBlueprint?.id === bp.id 
+                      ? "bg-nexus-accent/10 border-nexus-accent/30" 
+                      : "bg-white/5 border-transparent hover:border-white/10"
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Code className={cn("w-3 h-3", selectedBlueprint?.id === bp.id ? "text-nexus-accent" : "text-nexus-text-dim")} />
+                    <span className="text-xs font-bold text-white uppercase">{bp.name}</span>
+                  </div>
+                  <p className="text-[9px] text-nexus-text-dim truncate font-mono">{bp.type}</p>
+                </button>
               ))}
             </div>
           </div>
@@ -143,7 +218,7 @@ export const CloudConfig = () => {
 
         {/* Dashboard Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/20">
-          {selectedParam ? (
+          {activeView === "params" && selectedParam && (
             <div className="p-8 space-y-8 max-w-5xl mx-auto">
               <section className="flex flex-col md:flex-row gap-6">
                 <div className="flex-1 glass p-8 rounded-[40px] border border-nexus-accent/20 bg-nexus-accent/5 relative overflow-hidden">
@@ -244,10 +319,47 @@ export const CloudConfig = () => {
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {activeView === "blueprints" && selectedBlueprint && (
+            <div className="p-8 space-y-8 max-w-5xl mx-auto">
+              <div className="flex justify-between items-center bg-nexus-accent/5 p-8 rounded-[40px] border border-nexus-accent/20 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                  <Terminal className="w-32 h-32 text-nexus-accent" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-display font-black text-white uppercase">{selectedBlueprint.name}</h2>
+                  <p className="text-nexus-text-dim font-mono text-[10px] mt-1 uppercase tracking-widest">Type: {selectedBlueprint.type}</p>
+                </div>
+                <button 
+                  onClick={() => handleCopy(selectedBlueprint.payload)}
+                  className="px-6 py-2 bg-nexus-accent text-black font-bold rounded-xl text-xs uppercase tracking-widest flex items-center gap-2 hover:brightness-110 transition-all"
+                >
+                  {copied === selectedBlueprint.payload ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  Copy Code
+                </button>
+              </div>
+
+              <div className="glass rounded-3xl border border-white/5 overflow-hidden">
+                <div className="bg-white/5 px-6 py-3 border-b border-white/5 flex items-center justify-between">
+                  <span className="text-[10px] font-mono text-nexus-text-dim tracking-widest">MAIN.TF</span>
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3].map(i => <div key={i} className="w-2 h-2 rounded-full bg-white/10" />)}
+                  </div>
+                </div>
+                <div className="p-6 bg-black overflow-x-auto">
+                  <pre className="text-nexus-accent font-mono text-[11px] leading-relaxed">
+                    {selectedBlueprint.payload}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {((activeView === "params" && !selectedParam) || (activeView === "blueprints" && !selectedBlueprint)) && (
             <div className="h-full flex flex-col items-center justify-center text-nexus-text-dim space-y-4">
               <Settings className="w-16 h-16 opacity-10" />
-              <p className="text-xs uppercase tracking-widest font-mono">Select a parameter to orchestrate</p>
+              <p className="text-xs uppercase tracking-widest font-mono">Select a resource to orchestrate</p>
             </div>
           )}
         </div>
