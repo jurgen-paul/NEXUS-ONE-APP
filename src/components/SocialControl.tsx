@@ -896,13 +896,22 @@ export const SocialControl = () => {
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
 
-    Array.from(files).forEach(file => {
-      const url = URL.createObjectURL(file);
-      const type = file.type.startsWith("video") ? "video" : "image";
-      setAttachedMedia(prev => {
-        if (prev.length >= 4) return prev;
-        return [...prev, { url, type }];
-      });
+    const validFiles = Array.from(files).filter(file => 
+      file.type.startsWith('image/') || file.type.startsWith('video/')
+    );
+
+    if (validFiles.length === 0) return;
+
+    setAttachedMedia(prev => {
+      const remainingSlots = 4 - prev.length;
+      if (remainingSlots <= 0) return prev;
+      
+      const newMedia = validFiles.slice(0, remainingSlots).map(file => ({
+        url: URL.createObjectURL(file),
+        type: (file.type.startsWith("video") ? "video" : "image") as "video" | "image"
+      }));
+      
+      return [...prev, ...newMedia];
     });
   };
 
@@ -927,7 +936,13 @@ export const SocialControl = () => {
   };
 
   const removeMedia = (index: number) => {
-    setAttachedMedia(prev => prev.filter((_, i) => i !== index));
+    setAttachedMedia(prev => {
+      const updated = [...prev];
+      if (updated[index]?.url) {
+        URL.revokeObjectURL(updated[index].url);
+      }
+      return updated.filter((_, i) => i !== index);
+    });
   };
 
   return (
@@ -2145,15 +2160,18 @@ export const SocialControl = () => {
                         {media.type === "image" ? (
                           <img src={media.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-nexus-accent/10">
-                            <Film className="w-6 h-6 text-nexus-accent" />
+                          <div className="w-full h-full relative">
+                            <video src={media.url} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none group-hover:bg-black/40 transition-colors">
+                              <Film className="w-8 h-8 text-nexus-accent drop-shadow-lg" />
+                            </div>
                           </div>
                         )}
                         <button 
                           onClick={() => removeMedia(i)}
-                          className="absolute top-1 right-1 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 p-1.5 bg-red-500/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm z-10"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ))}
