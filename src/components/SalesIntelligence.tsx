@@ -32,6 +32,7 @@ interface CallbackRequest {
   phoneNumber: string;
   status: "Pending" | "In-Progress" | "Completed" | "Missed";
   requestedTime: string;
+  requestedDate?: string;
   priority: "High" | "Medium" | "Low";
   source: string;
   notes: string;
@@ -48,6 +49,7 @@ const INITIAL_CALLBACKS: CallbackRequest[] = [
     phoneNumber: "+1 (555) 012-3456",
     status: "Pending",
     requestedTime: "14:30",
+    requestedDate: "2026-05-14",
     priority: "High",
     source: "Landing Page",
     notes: "Interested in Enterprise licensing.",
@@ -61,6 +63,7 @@ const INITIAL_CALLBACKS: CallbackRequest[] = [
     phoneNumber: "+1 (555) 987-6543",
     status: "In-Progress",
     requestedTime: "15:00",
+    requestedDate: "2026-05-14",
     priority: "Medium",
     source: "LinkedIn",
     notes: "Question about API limits.",
@@ -74,6 +77,7 @@ const INITIAL_CALLBACKS: CallbackRequest[] = [
     phoneNumber: "+44 20 7946 0123",
     status: "Completed",
     requestedTime: "10:00",
+    requestedDate: "2026-05-12",
     priority: "Low",
     source: "Support Bot",
     notes: "Resolution confirmed. System architect follow-up.",
@@ -87,6 +91,7 @@ const INITIAL_CALLBACKS: CallbackRequest[] = [
     phoneNumber: "+34 912 345 678",
     status: "Missed",
     requestedTime: "09:00",
+    requestedDate: "2026-05-13",
     priority: "High",
     source: "Mobile App",
     notes: "Requires urgent technical consultation regarding cross-border payments.",
@@ -103,11 +108,20 @@ export const SalesIntelligence = () => {
   const [filter, setFilter] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddingCallback, setIsAddingCallback] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [selectedLeadForScheduling, setSelectedLeadForScheduling] = useState<CallbackRequest | null>(null);
   const [newCallback, setNewCallback] = useState<Partial<CallbackRequest>>({
     priority: "Medium",
     status: "Pending",
     source: "Manual Entry",
-    leadScore: 50
+    leadScore: 50,
+    requestedDate: new Date().toISOString().split('T')[0]
+  });
+
+  const [schedulingData, setSchedulingData] = useState({
+    date: new Date().toISOString().split('T')[0],
+    time: "09:00",
+    notes: ""
   });
 
   const filteredCallbacks = useMemo(() => {
@@ -140,6 +154,7 @@ export const SalesIntelligence = () => {
       phoneNumber: newCallback.phoneNumber!,
       status: "Pending",
       requestedTime: newCallback.requestedTime || "ASAP",
+      requestedDate: newCallback.requestedDate,
       priority: newCallback.priority || "Medium",
       source: newCallback.source || "Manual Entry",
       notes: newCallback.notes || "",
@@ -153,8 +168,28 @@ export const SalesIntelligence = () => {
       priority: "Medium",
       status: "Pending",
       source: "Manual Entry",
-      leadScore: 50
+      leadScore: 50,
+      requestedDate: new Date().toISOString().split('T')[0]
     });
+  };
+
+  const scheduleCallback = () => {
+    if (!selectedLeadForScheduling) return;
+    
+    setCallbacks(prev => prev.map(cb => 
+      cb.id === selectedLeadForScheduling.id 
+        ? { 
+            ...cb, 
+            requestedDate: schedulingData.date, 
+            requestedTime: schedulingData.time,
+            notes: schedulingData.notes || cb.notes,
+            status: "Pending" 
+          } 
+        : cb
+    ));
+    
+    setIsScheduling(false);
+    setSelectedLeadForScheduling(null);
   };
 
   return (
@@ -365,6 +400,21 @@ export const SalesIntelligence = () => {
                       >
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedLeadForScheduling(cb);
+                          setSchedulingData({
+                            date: cb.requestedDate || new Date().toISOString().split('T')[0],
+                            time: cb.requestedTime === "ASAP" ? "09:00" : cb.requestedTime,
+                            notes: ""
+                          });
+                          setIsScheduling(true);
+                        }}
+                        className="p-2 rounded-lg bg-white/5 hover:bg-blue-500/20 text-blue-400 transition-colors"
+                        title="Schedule Call-back"
+                      >
+                        <Calendar className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </motion.tr>
@@ -501,6 +551,15 @@ export const SalesIntelligence = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <label className="text-[10px] font-mono text-nexus-text-dim uppercase">Scheduled Date</label>
+                    <input 
+                      type="date"
+                      value={newCallback.requestedDate || ""}
+                      onChange={(e) => setNewCallback({ ...newCallback, requestedDate: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-nexus-accent/50 transition-colors [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-[10px] font-mono text-nexus-text-dim uppercase">Scheduled Time</label>
                     <input 
                       type="time"
@@ -509,8 +568,11 @@ export const SalesIntelligence = () => {
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-nexus-accent/50 transition-colors [color-scheme:dark]"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-mono text-nexus-text-dim uppercase">Priority Tier</label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 flex flex-col justify-end">
+                    <label className="text-[10px] font-mono text-nexus-text-dim uppercase mb-2">Priority Tier</label>
                     <select 
                       value={newCallback.priority}
                       onChange={(e) => setNewCallback({ ...newCallback, priority: e.target.value as any })}
@@ -586,6 +648,97 @@ export const SalesIntelligence = () => {
                   className="flex-1 px-6 py-3 bg-nexus-accent text-black font-bold rounded-xl text-sm hover:bg-white transition-all shadow-lg shadow-nexus-accent/20"
                 >
                   INITIALIZE PROTOCOL
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Schedule Call-back Modal */}
+      <AnimatePresence>
+        {isScheduling && selectedLeadForScheduling && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsScheduling(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg glass border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-white/5 bg-white/5">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xl font-display font-bold flex items-center gap-2 text-blue-400">
+                    <Calendar className="w-5 h-5" />
+                    Neural Temporal Schedule
+                  </h3>
+                  <button onClick={() => setIsScheduling(false)} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-[10px] font-mono text-nexus-text-dim mt-2 uppercase tracking-widest">
+                  Target: <span className="text-white">{selectedLeadForScheduling.customerName}</span>
+                </p>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono text-nexus-text-dim uppercase">Schedule Epoch (Date)</label>
+                    <input 
+                      type="date"
+                      value={schedulingData.date}
+                      onChange={(e) => setSchedulingData({ ...schedulingData, date: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-nexus-accent/50 transition-colors [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-mono text-nexus-text-dim uppercase">Temporal Marker (Time)</label>
+                    <input 
+                      type="time"
+                      value={schedulingData.time}
+                      onChange={(e) => setSchedulingData({ ...schedulingData, time: e.target.value })}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-nexus-accent/50 transition-colors [color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-mono text-nexus-text-dim uppercase">Post-Neural Deployment Instruction</label>
+                  <textarea 
+                    value={schedulingData.notes}
+                    onChange={(e) => setSchedulingData({ ...schedulingData, notes: e.target.value })}
+                    placeholder="Enter follow-up objectives..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none h-32 resize-none focus:border-nexus-accent/50 transition-colors"
+                  />
+                </div>
+
+                <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20 flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-blue-400" />
+                  <p className="text-[9px] font-mono text-blue-300 uppercase tracking-tight">
+                    Quantum reminder will be triggered 15 cycles prior to the scheduled uplink.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 bg-white/5 border-t border-white/5 flex gap-3">
+                <button 
+                  onClick={() => setIsScheduling(false)}
+                  className="flex-1 px-6 py-3 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/5 transition-colors uppercase tracking-widest"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={scheduleCallback}
+                  className="flex-1 px-6 py-3 bg-blue-500 text-white font-bold rounded-xl text-sm hover:bg-blue-400 transition-all shadow-lg shadow-blue-500/20 uppercase tracking-widest"
+                >
+                  Confirm Schedule
                 </button>
               </div>
             </motion.div>

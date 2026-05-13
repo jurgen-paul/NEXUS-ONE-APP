@@ -15,6 +15,7 @@ export enum Module {
   SMART_INBOX = "SMART_INBOX",
   CLOUD_CONFIG = "CLOUD_CONFIG",
   COLLABORATION = "COLLABORATION",
+  CONTENT_HUB = "CONTENT_HUB",
 }
 
 export interface NavItem {

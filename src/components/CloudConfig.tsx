@@ -16,7 +16,10 @@ import {
   Globe,
   Settings,
   Archive,
-  Code
+  Code,
+  Eye,
+  EyeOff,
+  User
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
@@ -32,6 +35,14 @@ interface CloudBlueprint {
   name: string;
   type: "TERRAFORM" | "GDM";
   payload: string;
+}
+
+interface APIKey {
+  id: string;
+  name: string;
+  key: string;
+  provider: string;
+  createdAt: string;
 }
 
 interface Parameter {
@@ -76,6 +87,11 @@ const INITIAL_BLUEPRINTS: CloudBlueprint[] = [
   { id: "b1", name: "MySQL Cloud SQL Instance", type: "TERRAFORM", payload: TERRAFORM_SCRIPT }
 ];
 
+const INITIAL_KEYS: APIKey[] = [
+  { id: "k1", name: "Gemini Pro Node", key: "AIzaSyAqM4X_pL8k", provider: "Google AI", createdAt: "2026-05-13" },
+  { id: "k2", name: "Stripe Connect", key: "sk_live_51Mv9K2L", provider: "Stripe", createdAt: "2026-05-12" },
+];
+
 const INITIAL_PARAMETERS: Parameter[] = [
   {
     id: "OISTARIAN",
@@ -94,7 +110,10 @@ export const CloudConfig = () => {
   const [selectedParam, setSelectedParam] = useState<Parameter | null>(INITIAL_PARAMETERS[0]);
   const [blueprints] = useState<CloudBlueprint[]>(INITIAL_BLUEPRINTS);
   const [selectedBlueprint, setSelectedBlueprint] = useState<CloudBlueprint | null>(INITIAL_BLUEPRINTS[0]);
-  const [activeView, setActiveView] = useState<"params" | "blueprints">("params");
+  const [apiKeys, setApiKeys] = useState<APIKey[]>(INITIAL_KEYS);
+  const [selectedKey, setSelectedKey] = useState<APIKey | null>(INITIAL_KEYS[0]);
+  const [activeView, setActiveView] = useState<"params" | "blueprints" | "keys">("params");
+  const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newPayload, setNewPayload] = useState("");
@@ -160,6 +179,15 @@ export const CloudConfig = () => {
           >
             Blueprints
           </button>
+          <button 
+            onClick={() => setActiveView("keys")}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+              activeView === "keys" ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+            )}
+          >
+            API Keys
+          </button>
         </div>
       </header>
 
@@ -194,7 +222,7 @@ export const CloudConfig = () => {
                   </div>
                   <p className="text-[9px] text-nexus-text-dim truncate font-mono">{param.projectId}</p>
                 </button>
-              )) : blueprints.map((bp) => (
+              )) : activeView === "blueprints" ? blueprints.map((bp) => (
                 <button
                   key={bp.id}
                   onClick={() => setSelectedBlueprint(bp)}
@@ -210,6 +238,23 @@ export const CloudConfig = () => {
                     <span className="text-xs font-bold text-white uppercase">{bp.name}</span>
                   </div>
                   <p className="text-[9px] text-nexus-text-dim truncate font-mono">{bp.type}</p>
+                </button>
+              )) : apiKeys.map((k) => (
+                <button
+                  key={k.id}
+                  onClick={() => setSelectedKey(k)}
+                  className={cn(
+                    "w-full text-left p-4 rounded-xl border transition-all",
+                    selectedKey?.id === k.id 
+                      ? "bg-nexus-accent/10 border-nexus-accent/30" 
+                      : "bg-white/5 border-transparent hover:border-white/10"
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Shield className={cn("w-3 h-3", selectedKey?.id === k.id ? "text-nexus-accent" : "text-nexus-text-dim")} />
+                    <span className="text-xs font-bold text-white uppercase">{k.name}</span>
+                  </div>
+                  <p className="text-[9px] text-nexus-text-dim truncate font-mono">{k.provider}</p>
                 </button>
               ))}
             </div>
@@ -356,10 +401,71 @@ export const CloudConfig = () => {
             </div>
           )}
 
-          {((activeView === "params" && !selectedParam) || (activeView === "blueprints" && !selectedBlueprint)) && (
+          {((activeView === "params" && !selectedParam) || (activeView === "blueprints" && !selectedBlueprint) || (activeView === "keys" && !selectedKey)) && (
             <div className="h-full flex flex-col items-center justify-center text-nexus-text-dim space-y-4">
               <Settings className="w-16 h-16 opacity-10" />
               <p className="text-xs uppercase tracking-widest font-mono">Select a resource to orchestrate</p>
+            </div>
+          )}
+
+          {activeView === "keys" && selectedKey && (
+            <div className="p-8 space-y-8 max-w-5xl mx-auto">
+              <div className="flex justify-between items-center bg-nexus-accent/5 p-8 rounded-[40px] border border-nexus-accent/20 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                  <Shield className="w-32 h-32 text-nexus-accent" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-display font-black text-white uppercase">{selectedKey.name}</h2>
+                  <p className="text-nexus-text-dim font-mono text-[10px] mt-1 uppercase tracking-widest">Provider: {selectedKey.provider}</p>
+                </div>
+                <div className="flex gap-4">
+                  <button className="px-6 py-2 glass border-white/10 text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
+                    Rotate Key
+                  </button>
+                </div>
+              </div>
+
+              <div className="glass p-8 rounded-3xl border border-white/5 space-y-6">
+                <div>
+                  <label className="block text-[10px] font-mono text-nexus-text-dim uppercase tracking-widest mb-3">Secret API Key</label>
+                  <div className="relative group">
+                    <input 
+                      type={showKey ? "text" : "password"}
+                      value={selectedKey.key}
+                      readOnly
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-6 pr-24 text-sm font-mono text-nexus-accent focus:outline-none focus:border-nexus-accent/50 transition-all"
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <button 
+                        onClick={() => setShowKey(!showKey)}
+                        className="p-2 text-nexus-text-dim hover:text-white transition-colors"
+                      >
+                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                      <button 
+                        onClick={() => handleCopy(selectedKey.key)}
+                        className="p-2 text-nexus-text-dim hover:text-white transition-colors"
+                      >
+                        {copied === selectedKey.key ? <Check className="w-4 h-4 text-nexus-accent" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[9px] text-nexus-text-dim font-mono italic">
+                    Key established on {selectedKey.createdAt}. High-frequency access detected.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                    <p className="text-[9px] font-mono text-nexus-text-dim uppercase tracking-widest mb-1">Access Level</p>
+                    <p className="text-xs font-bold text-white uppercase tracking-wider">FULL_ADMIN_WRITE</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                    <p className="text-[9px] font-mono text-nexus-text-dim uppercase tracking-widest mb-1">Usage Quota</p>
+                    <p className="text-xs font-bold text-white uppercase tracking-wider">UNLIMITED</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

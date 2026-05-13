@@ -24,7 +24,8 @@ import {
   Download,
   Eye,
   Inbox,
-  Shield
+  Shield,
+  Newspaper
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Module } from "@/src/types";
@@ -44,6 +45,7 @@ import { AIAssistant } from "./components/AIAssistant";
 import { SmartInbox } from "./components/SmartInbox";
 import { CloudConfig } from "./components/CloudConfig";
 import { CollaborationHub } from "./components/CollaborationHub";
+import { ContentHub } from "./components/ContentHub";
 
 
 const SmartDocs = () => (
@@ -140,6 +142,7 @@ export default function App() {
     { id: Module.SMART_INBOX, label: "Smart Inbox", icon: Inbox },
     { id: Module.CLOUD_CONFIG, label: "Cloud Parameters", icon: Shield },
     { id: Module.COLLABORATION, label: "Collaboration", icon: Users },
+    { id: Module.CONTENT_HUB, label: "Content Matrix", icon: Newspaper },
   ];
 
   return (
@@ -248,9 +251,10 @@ export default function App() {
               {activeModule === Module.SMART_INBOX && <SmartInbox />}
               {activeModule === Module.CLOUD_CONFIG && <CloudConfig />}
               {activeModule === Module.COLLABORATION && <CollaborationHub />}
+              {activeModule === Module.CONTENT_HUB && <ContentHub />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>

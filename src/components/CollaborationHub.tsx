@@ -17,7 +17,13 @@ import {
   Activity,
   Filter,
   Search,
-  Calendar
+  Calendar,
+  GitBranch,
+  GitCommit,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  RefreshCw,
+  Terminal
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
@@ -73,8 +79,64 @@ const VERSIONS: ProjectVersion[] = [
 ];
 
 export const CollaborationHub = () => {
-  const [activeTab, setActiveTab] = useState<"team" | "notifications" | "history">("team");
+  const [activeTab, setActiveTab] = useState<"team" | "notifications" | "history" | "git">("team");
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
+
+  // Git State
+  const [gitHistory, setGitHistory] = useState<any[]>([]);
+  const [gitStatus, setGitStatus] = useState<any>(null);
+  const [gitLoading, setGitLoading] = useState(false);
+  const [gitError, setGitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab === "git") {
+      fetchGitData();
+    }
+  }, [activeTab]);
+
+  const fetchGitData = async () => {
+    setGitLoading(true);
+    setGitError(null);
+    try {
+      const [historyRes, statusRes] = await Promise.all([
+        fetch("/api/git/history"),
+        fetch("/api/git/status")
+      ]);
+      
+      const history = await historyRes.json();
+      const status = await statusRes.json();
+      
+      if (historyRes.ok) setGitHistory(history);
+      else setGitError(history.error);
+      
+      if (statusRes.ok) setGitStatus(status);
+    } catch (err: any) {
+      setGitError("Failed to connect to Nexus Git Terminal");
+    } finally {
+      setGitLoading(false);
+    }
+  };
+
+  const handleGitAction = async (action: "pull" | "push" | "fetch") => {
+    setGitLoading(true);
+    try {
+      const res = await fetch("/api/git/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchGitData();
+      } else {
+        setGitError(data.error);
+      }
+    } catch (err) {
+      setGitError(`Action ${action} failed connection.`);
+    } finally {
+      setGitLoading(false);
+    }
+  };
 
   // History Filters
   const [filterAuthor, setFilterAuthor] = useState<string>("All");
@@ -110,6 +172,7 @@ export const CollaborationHub = () => {
             { id: "team", label: "Team", icon: Users },
             { id: "notifications", label: "Activity", icon: Bell },
             { id: "history", label: "History", icon: History },
+            { id: "git", label: "Git", icon: GitBranch },
           ].map(tab => (
             <button 
               key={tab.id}
@@ -131,6 +194,144 @@ export const CollaborationHub = () => {
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
         <AnimatePresence mode="wait">
+          {activeTab === "git" && (
+            <motion.div 
+              key="git"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-6xl mx-auto space-y-8"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-xl font-display font-bold uppercase tracking-tight">Nexus Git Matrix</h2>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-[10px] font-mono text-nexus-text-dim uppercase tracking-widest flex items-center gap-2">
+                       Active Branch: <span className="text-nexus-accent">{gitStatus?.branch || "main"}</span>
+                    </p>
+                    <div className="w-1 h-1 rounded-full bg-white/20" />
+                    <p className="text-[10px] font-mono text-nexus-text-dim uppercase tracking-widest">
+                       Status: <span className={cn(gitStatus?.status === "Clean" ? "text-green-400" : "text-yellow-400")}>{gitStatus?.status || "Analyzing..."}</span>
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => handleGitAction("pull")}
+                    disabled={gitLoading}
+                    className="px-4 py-2 bg-blue-500/10 border border-blue-500/30 text-blue-400 font-bold rounded-xl text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-blue-500 hover:text-black transition-all disabled:opacity-50"
+                  >
+                    <ArrowDownCircle className="w-4 h-4" /> Pull
+                  </button>
+                  <button 
+                    onClick={() => handleGitAction("push")}
+                    disabled={gitLoading}
+                    className="px-4 py-2 bg-nexus-accent/10 border border-nexus-accent/30 text-nexus-accent font-bold rounded-xl text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-nexus-accent hover:text-black transition-all disabled:opacity-50"
+                  >
+                    <ArrowUpCircle className="w-4 h-4" /> Push
+                  </button>
+                  <button 
+                    onClick={fetchGitData}
+                    disabled={gitLoading}
+                    className={cn(
+                      "p-2 bg-white/5 border border-white/10 rounded-xl text-white transition-all hover:bg-white/10",
+                      gitLoading && "animate-spin"
+                    )}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {gitError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-4">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-red-500 uppercase tracking-wider">Neural Link Error</p>
+                    <p className="text-[10px] text-red-400 font-mono mt-0.5">{gitError}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="glass rounded-[32px] border border-white/5 overflow-hidden">
+                    <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                      <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                        <History className="w-4 h-4 text-nexus-accent" />
+                        Commit Architecture
+                      </h3>
+                      <span className="text-[10px] font-mono text-nexus-text-dim">TOTAL_NODES: {gitHistory.length}</span>
+                    </div>
+                    <div className="divide-y divide-white/5">
+                      {gitHistory.map((commit, i) => (
+                        <div key={commit.hash} className="p-6 hover:bg-white/[0.02] transition-colors group">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 group-hover:border-nexus-accent/30 transition-all">
+                                <GitCommit className="w-4 h-4 text-nexus-text-dim group-hover:text-nexus-accent" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-white leading-none mb-1">{commit.message}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-mono text-nexus-accent bg-nexus-accent/10 px-1.5 py-0.5 rounded uppercase tracking-tighter">{commit.hash}</span>
+                                  <span className="text-[10px] text-nexus-text-dim uppercase tracking-wider">{commit.author}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-nexus-text-dim uppercase">{commit.date}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="glass p-6 rounded-[32px] border border-white/5 bg-nexus-accent/5">
+                    <h3 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
+                      <GitBranch className="w-4 h-4 text-nexus-accent" />
+                      Branch Matrix
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="p-4 bg-white/5 rounded-2xl border border-nexus-accent/30 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-nexus-accent shadow-[0_0_8px_rgba(5,255,161,0.5)]" />
+                          <span className="text-xs font-bold text-white uppercase">{gitStatus?.branch || "main"}</span>
+                        </div>
+                        <span className="text-[9px] font-mono text-nexus-accent uppercase tracking-widest">Active</span>
+                      </div>
+                      <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between opacity-50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-white/20" />
+                          <span className="text-xs font-bold text-white uppercase">dev-beta-04</span>
+                        </div>
+                        <button className="text-[9px] font-mono text-nexus-text-dim hover:text-white uppercase tracking-widest">Switch</button>
+                      </div>
+                      <button className="w-full py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-nexus-text-dim hover:text-white transition-all flex items-center justify-center gap-2">
+                        + Initialize Neural Fork
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="glass p-6 rounded-[32px] border border-white/5">
+                    <h3 className="text-sm font-bold uppercase tracking-widest mb-6 flex items-center gap-2">
+                       <Terminal className="w-4 h-4 text-nexus-text-dim" />
+                       Nexus CLI
+                    </h3>
+                    <div className="bg-black/60 p-4 rounded-xl border border-white/10 font-mono text-[10px] space-y-2 h-48 overflow-y-auto">
+                      <p className="text-nexus-accent">{">"} nexus git status</p>
+                      <p className="text-white/60">On branch {gitStatus?.branch || "main"}</p>
+                      <p className="text-white/60">Your branch is up to date with origin/{gitStatus?.branch || "main"}.</p>
+                      <p className="text-white/60 mt-4">nothing to commit, working tree clean</p>
+                      <p className="text-nexus-text-dim animate-pulse">_</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === "team" && (
             <motion.div 
               key="team"

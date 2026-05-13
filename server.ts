@@ -4,6 +4,10 @@ import cookieParser from "cookie-parser";
 import axios from "axios";
 import dotenv from "dotenv";
 import crypto from "crypto";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 dotenv.config();
 
@@ -13,6 +17,61 @@ async function startServer() {
 
   app.use(express.json());
   app.use(cookieParser());
+
+  // --- Git Integration ---
+  app.get("/api/git/status", async (req, res) => {
+    try {
+      const { stdout: branch } = await execAsync("git branch --show-current");
+      const { stdout: status } = await execAsync("git status --short");
+      const { stdout: remote } = await execAsync("git remote -v");
+      
+      res.json({
+        branch: branch.trim(),
+        status: status.trim() || "Clean",
+        hasRemote: remote.trim().length > 0,
+        remote: remote.trim()
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "Git not initialized or not accessible", details: error.message });
+    }
+  });
+
+  app.get("/api/git/history", async (req, res) => {
+    try {
+      // Get last 20 commits
+      const { stdout } = await execAsync('git log -n 20 --pretty=format:"%h|%an|%ar|%s"');
+      const commits = stdout.split("\n").filter(line => line.trim()).map(line => {
+        const [hash, author, date, message] = line.split("|");
+        return { hash, author, date, message };
+      });
+      res.json(commits);
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to fetch git history", details: error.message });
+    }
+  });
+
+  app.post("/api/git/action", async (req, res) => {
+    const { action } = req.body;
+    
+    if (!["pull", "push", "fetch"].includes(action)) {
+      return res.status(400).json({ error: "Invalid git action" });
+    }
+
+    try {
+      let command = `git ${action}`;
+      if (action === "push") command = "git push origin $(git branch --show-current)";
+      if (action === "pull") command = "git pull origin $(git branch --show-current)";
+
+      const { stdout, stderr } = await execAsync(command);
+      res.json({ output: stdout, error: stderr, success: true });
+    } catch (error: any) {
+      res.status(500).json({ 
+        error: `Git ${action} failed. This typically requires remote configuration and authentication.`, 
+        details: error.stderr || error.message,
+        success: false 
+      });
+    }
+  });
 
   // --- OAuth Configuration ---
   const OAUTH_CONFIGS: Record<string, any> = {
