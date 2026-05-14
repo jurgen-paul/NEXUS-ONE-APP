@@ -16,6 +16,7 @@ export enum Module {
   CLOUD_CONFIG = "CLOUD_CONFIG",
   COLLABORATION = "COLLABORATION",
   CONTENT_HUB = "CONTENT_HUB",
+  AI_GENERATOR = "AI_GENERATOR",
 }
 
 export interface NavItem {

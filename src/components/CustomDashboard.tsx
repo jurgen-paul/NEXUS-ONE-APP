@@ -502,6 +502,166 @@ const AppointmentsWidget = () => {
   );
 };
 
+const TasksWidget = () => {
+  const [tasks, setTasks] = useState([
+    { id: 1, task: "Update Neural Security Protocols", priority: "HIGH", completed: false },
+    { id: 2, task: "Sync Social Matrix for Q3", priority: "MED", completed: false },
+    { id: 3, task: "Review Sales Intelligence Report", priority: "LOW", completed: false },
+    { id: 4, task: "Calibrate AI Core Variance", priority: "HIGH", completed: false },
+  ]);
+
+  const [completingId, setCompletingId] = useState<number | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<"PENDING" | "COMPLETED" | "ALL">("PENDING");
+
+  const completeTask = (id: number) => {
+    if (completingId) return;
+    setCompletingId(id);
+    setTimeout(() => {
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+      setCompletingId(null);
+    }, 600);
+  };
+
+  const filteredTasks = tasks.filter(t => {
+    const matchesPriority = priorityFilter === "ALL" || t.priority === priorityFilter;
+    const matchesStatus = statusFilter === "ALL" || 
+                         (statusFilter === "PENDING" && !t.completed) || 
+                         (statusFilter === "COMPLETED" && t.completed);
+    return matchesPriority && matchesStatus;
+  });
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-5 border-b border-white/5 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+            <CheckSquare className="w-4 h-4 text-nexus-accent" />
+            Priority Tasking
+          </h3>
+          <span className="text-[10px] font-mono text-nexus-text-dim">
+            {tasks.filter(t => !t.completed).length} PENDING
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {/* Status Filters */}
+          <div className="flex gap-1">
+            {["PENDING", "COMPLETED", "ALL"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s as any)}
+                className={cn(
+                  "px-2 py-0.5 rounded text-[8px] font-mono border transition-all uppercase tracking-tighter",
+                  statusFilter === s 
+                    ? "bg-nexus-accent/20 border-nexus-accent/50 text-nexus-accent" 
+                    : "bg-white/5 border-white/5 text-nexus-text-dim hover:bg-white/10"
+                )}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          {/* Priority Filters */}
+          <div className="flex gap-1">
+            {["ALL", "HIGH", "MED", "LOW"].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPriorityFilter(p)}
+                className={cn(
+                  "px-2 py-0.5 rounded text-[8px] font-mono border transition-all uppercase tracking-tighter",
+                  priorityFilter === p 
+                    ? "bg-white/20 border-white/40 text-white" 
+                    : "bg-white/5 border-white/5 text-nexus-text-dim hover:bg-white/10"
+                )}
+              >
+                {p === "ALL" ? "ANY PR" : p}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="p-5 space-y-2 flex-1 relative overflow-hidden overflow-y-auto no-scrollbar">
+        <AnimatePresence initial={false} mode="popLayout">
+          {filteredTasks.map((t) => (
+            <motion.div 
+              key={t.id}
+              layout
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ 
+                opacity: completingId === t.id ? 0.5 : 1, 
+                scale: completingId === t.id ? 0.98 : 1,
+                filter: completingId === t.id ? "blur(2px)" : "blur(0px)",
+              }}
+              exit={{ opacity: 0, scale: 0.9, x: 20 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => completeTask(t.id)}
+              className={cn(
+                "flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer relative overflow-hidden group",
+                t.completed ? "bg-nexus-accent/5 border border-nexus-accent/10" : "bg-white/5 hover:bg-white/10 border border-white/5",
+                completingId === t.id && "pointer-events-none"
+              )}
+            >
+              <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
+                <div className={cn(
+                  "w-1.5 h-1.5 rounded-full transition-all duration-500",
+                  (completingId === t.id || t.completed) ? "scale-0" : "scale-100",
+                  t.priority === "HIGH" ? "bg-red-400" : t.priority === "MED" ? "bg-yellow-400" : "bg-blue-400"
+                )} />
+                <AnimatePresence>
+                  {(completingId === t.id || t.completed) && (
+                    <motion.div 
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="absolute inset-0 flex items-center justify-center"
+                    >
+                      <CheckSquare className="w-4 h-4 text-nexus-accent" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <span className={cn(
+                "text-xs transition-all duration-500 flex-1 truncate font-display",
+                (completingId === t.id || t.completed) ? "text-nexus-accent line-through opacity-50" : "text-white/80 group-hover:text-white"
+              )}>
+                {t.task}
+              </span>
+              
+              <span className="text-[8px] font-mono text-nexus-text-dim opacity-40">{t.priority}</span>
+
+              {/* Progress Sweep for completion */}
+              {completingId === t.id && (
+                <motion.div 
+                  initial={{ x: "-100%" }}
+                  animate={{ x: "100%" }}
+                  transition={{ duration: 0.6, ease: "easeInOut" }}
+                  className="absolute inset-0 bg-nexus-accent/10 pointer-events-none"
+                />
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {filteredTasks.length === 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center h-full py-8 text-center"
+          >
+            <Zap className="w-8 h-8 text-nexus-accent/20 mb-2 animate-pulse" />
+            <p className="text-[10px] font-mono text-nexus-text-dim uppercase tracking-tighter">No tasks match filter</p>
+          </motion.div>
+        )}
+
+        <button className="w-full mt-2 py-2 border border-dashed border-white/10 rounded-xl text-[10px] text-nexus-text-dim hover:text-white hover:border-nexus-accent/30 transition-all font-mono">
+          ADD NEW PROTOCOL
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const renderWidgetContent = (widget: Widget, extra: any = {}) => {
   switch (widget.type) {
     case "diagnostics":
@@ -654,36 +814,7 @@ const renderWidgetContent = (widget: Widget, extra: any = {}) => {
     case "appointments":
       return <AppointmentsWidget />;
     case "tasks":
-      return (
-        <>
-          <div className="p-5 border-b border-white/5 flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-nexus-accent" />
-              Priority Tasking
-            </h3>
-            <span className="text-[10px] font-mono text-nexus-text-dim">4 PENDING</span>
-          </div>
-          <div className="p-5 space-y-2 flex-1">
-            {[
-              { task: "Update Neural Security Protocols", priority: "HIGH" },
-              { task: "Sync Social Matrix for Q3", priority: "MED" },
-              { task: "Review Sales Intelligence Report", priority: "LOW" },
-            ].map((t, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 group hover:bg-white/10 transition-all cursor-pointer">
-                <div className={cn(
-                  "w-1.5 h-1.5 rounded-full shrink-0",
-                  t.priority === "HIGH" ? "bg-red-400" : t.priority === "MED" ? "bg-yellow-400" : "bg-blue-400"
-                )} />
-                <span className="text-xs text-white/80 group-hover:text-white transition-colors flex-1 truncate">{t.task}</span>
-                <span className="text-[8px] font-mono text-nexus-text-dim opacity-40">{t.priority}</span>
-              </div>
-            ))}
-            <button className="w-full mt-2 py-2 border border-dashed border-white/10 rounded-xl text-[10px] text-nexus-text-dim hover:text-white hover:border-nexus-accent/30 transition-all">
-              ADD NEW PROTOCOL
-            </button>
-          </div>
-        </>
-      );
+      return <TasksWidget />;
     case "pinned_module":
       const moduleInfo = PINNABLE_MODULES.find(m => m.id === widget.moduleId);
       if (!moduleInfo) return null;

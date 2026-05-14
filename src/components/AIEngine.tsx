@@ -23,7 +23,10 @@ import {
   X,
   TrendingUp,
   Trash2,
-  Plus
+  Plus,
+  FileText,
+  MousePointer2,
+  BookOpen
 } from "lucide-react";
 import { GoogleGenAI, Modality } from "@google/genai";
 import ReactMarkdown from "react-markdown";
@@ -113,6 +116,9 @@ export const AIEngine = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [personality, setPersonality] = useState<PersonalityMode>("Stealth");
   const [isCapturingVoice, setIsCapturingVoice] = useState(false);
+  const [isBlogMode, setIsBlogMode] = useState(false);
+  const [blogTitle, setBlogTitle] = useState("");
+  const [blogKeywords, setBlogKeywords] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -404,6 +410,49 @@ export const AIEngine = () => {
     }
   };
 
+  const handleGenerateBlog = async () => {
+    if (!blogTitle.trim() || isLoading) return;
+
+    const keywords = blogKeywords.split(',').map(k => k.trim()).filter(k => k);
+    const userPrompt = `Neural Blog Architecture Request:
+Title: ${blogTitle}
+Keywords: ${keywords.join(', ')}
+
+Please synthesize a comprehensive, high-authority blog post with a futuristic NEXUS tone. Include an executive summary, structured sections with technical depth, and a forward-looking conclusion.`;
+
+    const newUserMsg: Message = { role: "user", content: `Initiating Neural Blog Construction: **${blogTitle}**` };
+    setMessages(prev => [...prev, newUserMsg]);
+    setIsLoading(true);
+    setIsBlogMode(false);
+    setBlogTitle("");
+    setBlogKeywords("");
+
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{
+          role: "user",
+          parts: [{ text: userPrompt }]
+        }],
+        config: {
+          systemInstruction: `You are the NEXUS ONE Content Architect. You excel at creating visionary, high-quality blog content that feels ahead of its time. Your writing is authoritative, structured, and uses advanced technical vocabulary consistent with the NEXUS ONE universe.`
+        }
+      });
+
+      const assistantMessage = response.text || "Blog synthesis failed due to neural divergence.";
+      const finalMessages: Message[] = [...messages, newUserMsg, { role: "assistant", content: assistantMessage, personality: "Professional" }];
+      setMessages(finalMessages);
+      updateActiveSession(finalMessages);
+    } catch (error) {
+      console.error("Blog Gen Error:", error);
+      const errorMsg: Message[] = [...messages, newUserMsg, { role: "assistant", content: "Neural blog synthesis interrupted. Verify matrix connection.", personality: "Professional" }];
+      setMessages(errorMsg);
+      updateActiveSession(errorMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const handleCopy = (text: string, index: number) => {
@@ -412,20 +461,22 @@ export const AIEngine = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleShare = async (text: string) => {
+  const handleShare = async (text: string, url?: string) => {
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'NEXUS ONE AI Insight',
           text: text,
-          url: window.location.href,
+          url: url || window.location.href,
         });
       } catch (err) {
-        console.error("Neural share aborted:", err);
+        if (err instanceof Error && err.name !== 'AbortError') {
+          console.error("Neural share error:", err);
+        }
       }
     } else {
       // Fallback: Copy to clipboard and notify
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(url || text);
       alert("Neural link copied to clipboard. (Native share not supported in this port)");
     }
   };
@@ -513,7 +564,7 @@ export const AIEngine = () => {
                         <img src={msg.attachments[0]} alt="Neural Generated" className="w-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-4">
                           <button 
-                            onClick={() => handleShare(`Check out this visual synthesis from NEXUS ONE: ${msg.content}`)}
+                            onClick={() => handleShare(`Check out this visual synthesis from NEXUS ONE: ${msg.content}`, msg.attachments?.[0])}
                             className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md"
                             title="Share Neural Asset"
                           >
@@ -536,27 +587,30 @@ export const AIEngine = () => {
                   ) : msg.role === "assistant" ? (
                     <div className="relative">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      <div className="absolute -right-2 -bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute -right-2 -bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-1 group-hover:translate-y-0 duration-300">
                         <button 
                           onClick={() => handleCopy(msg.content, i)}
-                          className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:text-nexus-accent transition-colors"
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/10 hover:text-nexus-accent hover:border-nexus-accent/50 transition-all group/btn"
                           title="Copy to Neural Clipboard"
                         >
                           {copiedId === i ? <Check className="w-3 h-3 text-nexus-accent" /> : <Copy className="w-3 h-3" />}
+                          <span className="text-[10px] font-mono hidden group-hover/btn:inline uppercase tracking-tighter">Copy</span>
                         </button>
                         <button 
                           onClick={() => handleShare(msg.content)}
-                          className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:text-nexus-accent transition-colors"
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/10 hover:text-nexus-accent hover:border-nexus-accent/50 transition-all group/btn"
                           title="Broadcast to External Node"
                         >
                           <Share2 className="w-3 h-3" />
+                          <span className="text-[10px] font-mono hidden group-hover/btn:inline uppercase tracking-tighter">Share</span>
                         </button>
                         <button 
                           onClick={() => speakMessage(msg.content)}
-                          className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:text-nexus-accent transition-colors"
+                          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-black/80 backdrop-blur-md border border-white/10 hover:text-nexus-accent hover:border-nexus-accent/50 transition-all group/btn"
                           title="Neural Voice Output"
                         >
                           <Volume2 className={cn("w-3 h-3", isSpeaking && "animate-pulse")} />
+                          <span className="text-[10px] font-mono hidden group-hover/btn:inline uppercase tracking-tighter">Voice</span>
                         </button>
                       </div>
                     </div>
@@ -598,10 +652,77 @@ export const AIEngine = () => {
       </div>
 
       <div className="mt-6">
+        <AnimatePresence>
+          {isBlogMode && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="mb-4 glass border border-nexus-accent/20 rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(5,255,161,0.05)]"
+            >
+              <div className="p-4 border-b border-white/5 bg-nexus-accent/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-nexus-accent" />
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest">Neural Blog Architect</span>
+                </div>
+                <button 
+                  onClick={() => setIsBlogMode(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4 text-nexus-text-dim" />
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-nexus-text-dim uppercase tracking-widest pl-1">Protocol Title</label>
+                  <input 
+                    type="text"
+                    value={blogTitle}
+                    onChange={(e) => setBlogTitle(e.target.value)}
+                    placeholder="Enter visionary title..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-nexus-accent/30 transition-all font-display"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-nexus-text-dim uppercase tracking-widest pl-1">Tags / Keywords (Comma separated)</label>
+                  <input 
+                    type="text"
+                    value={blogKeywords}
+                    onChange={(e) => setBlogKeywords(e.target.value)}
+                    placeholder="AI, Futurism, Nexus, Matrix..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-nexus-accent/30 transition-all font-mono"
+                  />
+                </div>
+                <button 
+                  onClick={handleGenerateBlog}
+                  disabled={!blogTitle.trim() || isLoading}
+                  className="w-full bg-nexus-accent text-black font-bold uppercase tracking-[0.2em] py-3 rounded-xl hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-2 group"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 group-hover:animate-pulse" />
+                      Synthesize Content
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="relative glass p-2 rounded-2xl flex items-center gap-2 border border-white/10 group focus-within:border-nexus-accent/30 transition-all">
-          <button className="p-3 text-nexus-text-dim hover:text-white transition-colors relative">
-            <Plus className="w-5 h-5" />
-            <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-nexus-accent rounded-full animate-ping" />
+          <button 
+            onClick={() => setIsBlogMode(!isBlogMode)}
+            className={cn(
+              "p-3 transition-colors relative rounded-xl",
+              isBlogMode ? "bg-nexus-accent/20 text-nexus-accent" : "text-nexus-text-dim hover:text-white"
+            )}
+            title="Open Neural Blog Architect"
+          >
+            <FileText className="w-5 h-5" />
+            {!isBlogMode && !blogTitle && <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-nexus-accent rounded-full animate-ping" />}
           </button>
           <input 
             type="text"

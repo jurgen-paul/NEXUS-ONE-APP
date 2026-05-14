@@ -25,7 +25,8 @@ import {
   Eye,
   Inbox,
   Shield,
-  Newspaper
+  Newspaper,
+  Wand2
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Module } from "@/src/types";
@@ -46,7 +47,7 @@ import { SmartInbox } from "./components/SmartInbox";
 import { CloudConfig } from "./components/CloudConfig";
 import { CollaborationHub } from "./components/CollaborationHub";
 import { ContentHub } from "./components/ContentHub";
-
+import { SuperAIGenerator } from "./components/SuperAIGenerator";
 
 const SmartDocs = () => (
   <div className="p-8 space-y-8 max-w-5xl mx-auto">
@@ -143,6 +144,7 @@ export default function App() {
     { id: Module.CLOUD_CONFIG, label: "Cloud Parameters", icon: Shield },
     { id: Module.COLLABORATION, label: "Collaboration", icon: Users },
     { id: Module.CONTENT_HUB, label: "Content Matrix", icon: Newspaper },
+    { id: Module.AI_GENERATOR, label: "Neural Architect", icon: Wand2 },
   ];
 
   return (
@@ -252,6 +254,7 @@ export default function App() {
               {activeModule === Module.CLOUD_CONFIG && <CloudConfig />}
               {activeModule === Module.COLLABORATION && <CollaborationHub />}
               {activeModule === Module.CONTENT_HUB && <ContentHub />}
+              {activeModule === Module.AI_GENERATOR && <SuperAIGenerator />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
               {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB].includes(activeModule) && (
