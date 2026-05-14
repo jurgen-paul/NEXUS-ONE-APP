@@ -2144,57 +2144,143 @@ export const SocialControl = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest mb-3 block">Media Assets</label>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-mono text-nexus-text-dim uppercase tracking-widest block">Media Assets</label>
+                    <span className="text-[10px] font-mono text-nexus-text-dim">
+                      {attachedMedia.length} / 4 ASSETS
+                    </span>
+                  </div>
+                  
                   <div 
                     className={cn(
-                      "grid grid-cols-4 gap-3 p-4 rounded-2xl border-2 border-dashed transition-all",
-                      isDragging ? "border-nexus-accent bg-nexus-accent/5" : "border-white/5 bg-white/5"
+                      "relative min-h-[160px] rounded-3xl border-2 border-dashed transition-all duration-300 group/dropzone overflow-hidden",
+                      isDragging 
+                        ? "border-nexus-accent bg-nexus-accent/10 scale-[0.99] shadow-[0_0_30px_rgba(5,255,161,0.1)]" 
+                        : "border-white/10 bg-white/5 hover:border-white/20"
                     )}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                   >
-                    {attachedMedia.map((media, i) => (
-                      <div key={i} className="aspect-square rounded-xl glass relative group overflow-hidden border-nexus-accent/20">
-                        {media.type === "image" ? (
-                          <img src={media.url} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <div className="w-full h-full relative">
-                            <video src={media.url} className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none group-hover:bg-black/40 transition-colors">
-                              <Film className="w-8 h-8 text-nexus-accent drop-shadow-lg" />
-                            </div>
-                          </div>
-                        )}
-                        <button 
-                          onClick={() => removeMedia(i)}
-                          className="absolute top-2 right-2 p-1.5 bg-red-500/90 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm z-10"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                    {/* Background Pattern when dragging */}
+                    {isDragging && (
+                      <div className="absolute inset-0 opacity-10 pointer-events-none">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--nexus-accent)_1px,transparent_1px)] bg-[size:20px_20px]" />
                       </div>
-                    ))}
-                    {attachedMedia.length < 4 && (
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-white/10 hover:border-nexus-accent/50 hover:bg-nexus-accent/5 transition-all flex flex-col items-center justify-center gap-2 text-nexus-text-dim hover:text-nexus-accent"
-                        id="media-upload-trigger"
-                      >
-                        <UploadCloud className={cn("w-6 h-6", isDragging && "animate-bounce text-nexus-accent")} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">
-                          {isDragging ? "Drop to Attach" : "Attach Media"}
-                        </span>
-                      </button>
                     )}
-                    
+
+                    <div className="p-4 h-full">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 h-full">
+                        <AnimatePresence mode="popLayout">
+                          {attachedMedia.map((media, i) => (
+                            <motion.div 
+                              key={media.url}
+                              layout
+                              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                              className="aspect-square rounded-2xl glass relative group/item overflow-hidden border border-white/10"
+                            >
+                              {media.type === "image" ? (
+                                <img src={media.url} className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-110" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-full h-full relative">
+                                  <video 
+                                    src={media.url} 
+                                    className="w-full h-full object-cover" 
+                                    muted 
+                                    loop
+                                    onMouseEnter={(e) => e.currentTarget.play()}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.pause();
+                                      e.currentTarget.currentTime = 0;
+                                    }}
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none group-hover/item:bg-black/40 transition-colors">
+                                    <div className="p-3 rounded-full bg-nexus-accent/20 backdrop-blur-md border border-nexus-accent/30 group-hover/item:scale-110 transition-transform">
+                                      <Film className="w-6 h-6 text-nexus-accent shadow-[0_0_15px_rgba(5,255,161,0.5)]" />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity pointer-events-none" />
+                              
+                              <button 
+                                onClick={() => removeMedia(i)}
+                                className="absolute top-2 right-2 p-1.5 bg-red-500/90 text-white rounded-lg shadow-xl opacity-0 group-hover/item:opacity-100 transition-all hover:scale-110 active:scale-95 z-20 backdrop-blur-sm"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                              
+                              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-[9px] font-mono text-white opacity-0 group-hover/item:opacity-100 transition-opacity">
+                                {media.type.toUpperCase()}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+
+                        {attachedMedia.length < 4 && (
+                          <motion.button 
+                            layout
+                            onClick={() => fileInputRef.current?.click()}
+                            className={cn(
+                              "aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden",
+                              isDragging 
+                                ? "border-nexus-accent bg-nexus-accent/5 text-nexus-accent animate-pulse" 
+                                : "border-white/10 bg-white/5 hover:border-nexus-accent/50 hover:bg-nexus-accent/5 text-nexus-text-dim hover:text-nexus-accent"
+                            )}
+                          >
+                            <div className={cn(
+                              "p-3 rounded-2xl bg-white/5 transition-all group-hover/dropzone:scale-110",
+                              isDragging && "bg-nexus-accent/20 scale-125"
+                            )}>
+                              {isDragging ? (
+                                <Zap className="w-6 h-6 text-nexus-accent animate-pulse" />
+                              ) : (
+                                <UploadCloud className="w-6 h-6" />
+                              )}
+                            </div>
+                            <div className="text-center">
+                              <span className="text-[10px] font-bold uppercase tracking-widest block">
+                                {isDragging ? "RELEASE TO SYNC" : "ATTACH ASSETS"}
+                              </span>
+                              {attachedMedia.length === 0 && !isDragging && (
+                                <span className="text-[8px] opacity-40 uppercase tracking-tighter mt-1 block">
+                                  Drag & Drop supported
+                                </span>
+                              )}
+                            </div>
+                          </motion.button>
+                        )}
+                      </div>
+                    </div>
+
                     {attachedMedia.length === 0 && !isDragging && (
-                      <div className="col-span-4 py-8 flex flex-col items-center justify-center gap-2 opacity-50 pointer-events-none">
-                        <p className="text-xs">Drag and drop assets here or click to select</p>
-                        <p className="text-[9px] font-mono tracking-tighter">MAX 4 NEURAL ASSETS (IMG/VOD)</p>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="flex gap-4">
+                            <ImageIcon className="w-8 h-8" />
+                            <Film className="w-8 h-8" />
+                          </div>
+                          <p className="text-[10px] font-mono tracking-[0.2em] uppercase">Neural Media Hub</p>
+                        </div>
                       </div>
                     )}
                   </div>
+                  
+                  <div className="flex items-center gap-4 px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-400" />
+                      <span className="text-[9px] text-nexus-text-dim uppercase font-mono tracking-tighter">Images (JPG, PNG, WEBP)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span className="text-[9px] text-nexus-text-dim uppercase font-mono tracking-tighter">Videos (MP4, WEBM)</span>
+                    </div>
+                  </div>
+
                   <input 
                     type="file" 
                     ref={fileInputRef}
@@ -2202,7 +2288,6 @@ export const SocialControl = () => {
                     multiple
                     accept="image/*,video/*"
                     className="hidden"
-                    id="file-upload-input"
                   />
                 </div>
 

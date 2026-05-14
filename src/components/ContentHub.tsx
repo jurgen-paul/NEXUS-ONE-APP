@@ -102,12 +102,16 @@ export const ContentHub = () => {
 
   const filteredBlog = BLOG_POSTS.filter(post => 
     post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    post.category.toLowerCase().includes(searchQuery.toLowerCase())
+    post.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    post.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    post.date.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredNews = NEWS_ITEMS.filter(item => 
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.time.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -123,7 +127,7 @@ export const ContentHub = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-nexus-text-dim" />
             <input 
               type="text" 
-              placeholder="Filter matrix..."
+              placeholder="Search by title, category, author, or date..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-nexus-accent/50 transition-all font-mono"

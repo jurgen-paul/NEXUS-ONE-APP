@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import cookieParser from "cookie-parser";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -120,8 +121,9 @@ async function startServer() {
     }
   };
 
-  // --- API Routes ---
+  // API routes go here FIRST
   app.get("/api/health", (req, res) => {
+    console.log("Health check requested");
     const currentAppUrl = process.env.APP_URL || `http://localhost:${PORT}`;
     res.json({ 
       status: "ok", 
@@ -318,7 +320,10 @@ async function startServer() {
   });
 
   // --- Vite Middleware ---
+  console.log(`Starting server in ${process.env.NODE_ENV || "development"} mode`);
+  
   if (process.env.NODE_ENV !== "production") {
+    console.log("Loading Vite dev middleware...");
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -326,11 +331,25 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    const distPath = path.resolve("dist");
+    console.log(`Serving static files from: ${distPath}`);
+    
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        const indexPath = path.join(distPath, "index.html");
+        if (fs.existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          res.status(404).send("SPA entry point not found");
+        }
+      });
+    } else {
+      console.error(`Dist directory not found at ${distPath}`);
+      app.get("*", (req, res) => {
+        res.status(500).send("Server misconfigured: dist directory missing");
+      });
+    }
   }
 
   app.listen(PORT, "0.0.0.0", () => {

@@ -10,6 +10,8 @@ import {
   Loader2, 
   Share2, 
   Volume2, 
+  Copy,
+  Check,
   Image as ImageIcon, 
   Zap, 
   BrainCircuit,
@@ -402,6 +404,32 @@ export const AIEngine = () => {
     }
   };
 
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const handleCopy = (text: string, index: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(index);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleShare = async (text: string) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'NEXUS ONE AI Insight',
+          text: text,
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.error("Neural share aborted:", err);
+      }
+    } else {
+      // Fallback: Copy to clipboard and notify
+      navigator.clipboard.writeText(text);
+      alert("Neural link copied to clipboard. (Native share not supported in this port)");
+    }
+  };
+
   return (
     <div className="flex flex-col h-full max-w-4xl mx-auto p-6">
       <header className="flex items-center justify-between mb-8">
@@ -484,10 +512,21 @@ export const AIEngine = () => {
                       <div className="relative group/img overflow-hidden rounded-xl border border-white/10">
                         <img src={msg.attachments[0]} alt="Neural Generated" className="w-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                          <button className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md">
+                          <button 
+                            onClick={() => handleShare(`Check out this visual synthesis from NEXUS ONE: ${msg.content}`)}
+                            className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md"
+                            title="Share Neural Asset"
+                          >
                             <Share2 className="w-4 h-4" />
                           </button>
-                          <button className="p-2 bg-nexus-accent text-black rounded-lg">
+                          <button 
+                            onClick={() => handleCopy(msg.attachments![0], i)}
+                            className="p-2 bg-white/10 hover:bg-white/20 rounded-lg backdrop-blur-md"
+                            title="Copy Asset URI"
+                          >
+                            {copiedId === i ? <Check className="w-4 h-4 text-nexus-accent" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                          <button className="p-2 bg-nexus-accent text-black rounded-lg" title="Add to Matrix">
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
@@ -497,12 +536,29 @@ export const AIEngine = () => {
                   ) : msg.role === "assistant" ? (
                     <div className="relative">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      <button 
-                        onClick={() => speakMessage(msg.content)}
-                        className="absolute -right-2 -bottom-2 p-1.5 rounded-lg bg-black/40 border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity hover:text-nexus-accent"
-                      >
-                        <Volume2 className={cn("w-3 h-3", isSpeaking && "animate-pulse")} />
-                      </button>
+                      <div className="absolute -right-2 -bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleCopy(msg.content, i)}
+                          className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:text-nexus-accent transition-colors"
+                          title="Copy to Neural Clipboard"
+                        >
+                          {copiedId === i ? <Check className="w-3 h-3 text-nexus-accent" /> : <Copy className="w-3 h-3" />}
+                        </button>
+                        <button 
+                          onClick={() => handleShare(msg.content)}
+                          className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:text-nexus-accent transition-colors"
+                          title="Broadcast to External Node"
+                        >
+                          <Share2 className="w-3 h-3" />
+                        </button>
+                        <button 
+                          onClick={() => speakMessage(msg.content)}
+                          className="p-1.5 rounded-lg bg-black/60 border border-white/10 hover:text-nexus-accent transition-colors"
+                          title="Neural Voice Output"
+                        >
+                          <Volume2 className={cn("w-3 h-3", isSpeaking && "animate-pulse")} />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     msg.content
