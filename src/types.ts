@@ -17,6 +17,7 @@ export enum Module {
   COLLABORATION = "COLLABORATION",
   CONTENT_HUB = "CONTENT_HUB",
   AI_GENERATOR = "AI_GENERATOR",
+  DEPENDENCY_MAP = "DEPENDENCY_MAP",
 }
 
 export interface NavItem {

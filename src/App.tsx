@@ -26,7 +26,8 @@ import {
   Inbox,
   Shield,
   Newspaper,
-  Wand2
+  Wand2,
+  Network
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Module } from "@/src/types";
@@ -48,6 +49,7 @@ import { CloudConfig } from "./components/CloudConfig";
 import { CollaborationHub } from "./components/CollaborationHub";
 import { ContentHub } from "./components/ContentHub";
 import { SuperAIGenerator } from "./components/SuperAIGenerator";
+import { DependencyMap } from "./components/DependencyMap";
 
 const SmartDocs = () => (
   <div className="p-8 space-y-8 max-w-5xl mx-auto">
@@ -145,6 +147,7 @@ export default function App() {
     { id: Module.COLLABORATION, label: "Collaboration", icon: Users },
     { id: Module.CONTENT_HUB, label: "Content Matrix", icon: Newspaper },
     { id: Module.AI_GENERATOR, label: "Neural Architect", icon: Wand2 },
+    { id: Module.DEPENDENCY_MAP, label: "Topology Map", icon: Network },
   ];
 
   return (
@@ -255,9 +258,10 @@ export default function App() {
               {activeModule === Module.COLLABORATION && <CollaborationHub />}
               {activeModule === Module.CONTENT_HUB && <ContentHub />}
               {activeModule === Module.AI_GENERATOR && <SuperAIGenerator />}
+              {activeModule === Module.DEPENDENCY_MAP && <DependencyMap />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB, Module.AI_GENERATOR, Module.DEPENDENCY_MAP].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>
