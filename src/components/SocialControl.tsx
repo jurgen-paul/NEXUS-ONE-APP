@@ -109,7 +109,7 @@ export const SocialControl = () => {
   const [showInstagramDiagnostic, setShowInstagramDiagnostic] = useState(false);
   const [tokens, setTokens] = useState<Record<string, any>>({});
   const [isInitiatingLive, setIsInitiatingLive] = useState(false);
-  const [postFilter, setPostFilter] = useState<"All" | "Scheduled" | "Draft">("All");
+  const [postFilter, setPostFilter] = useState<"All" | "Scheduled" | "Draft" | "Live">("All");
 
   const [presets, setPresets] = useState<{ name: string; configs: Record<string, any>; platforms: string[] }[]>(() => {
     const saved = localStorage.getItem("nexus_presets");
@@ -815,28 +815,37 @@ export const SocialControl = () => {
     });
   };
 
-  const initiateLiveStream = async () => {
-    const isYoutubeLive = platformConfigs.youtube.isLive && selectedPlatforms.includes("youtube");
-    const isLinkedinLive = platformConfigs.linkedin.isLive && selectedPlatforms.includes("linkedin");
+  const initiateLiveStream = async (targetPost?: ScheduledPost) => {
+    const configs = targetPost ? targetPost.platformConfigs : platformConfigs;
+    const title = targetPost ? targetPost.title : newPostTitle;
+    const selected = targetPost ? targetPost.platformIds : selectedPlatforms;
     
-    if ((!isYoutubeLive && !isLinkedinLive) || isInitiatingLive) return;
+    const isYoutubeLive = configs?.youtube?.isLive && selected.includes("youtube");
+    const isLinkedinLive = configs?.linkedin?.isLive && selected.includes("linkedin");
+    
+    if ((!isYoutubeLive && !isLinkedinLive) || isInitiatingLive) {
+      if (targetPost && !isYoutubeLive && !isLinkedinLive) {
+        alert("This post is not configured for a live stream broadcast.");
+      }
+      return;
+    }
     
     setIsInitiatingLive(true);
     try {
       if (isYoutubeLive) {
-        const streamTitle = platformConfigs.youtube.streamTitle || newPostTitle;
-        const finalStartTime = platformConfigs.youtube.streamDate && platformConfigs.youtube.streamTime 
-          ? `${platformConfigs.youtube.streamDate}T${platformConfigs.youtube.streamTime}:00Z`
-          : (scheduleDate && scheduleTime ? `${scheduleDate}T${scheduleTime}:00Z` : new Date().toISOString());
+        const streamTitle = configs.youtube.streamTitle || title;
+        const finalStartTime = configs.youtube.streamDate && configs.youtube.streamTime 
+          ? `${configs.youtube.streamDate}T${configs.youtube.streamTime}:00Z`
+          : (targetPost ? targetPost.time.replace(", ", "T") + ":00Z" : (scheduleDate && scheduleTime ? `${scheduleDate}T${scheduleTime}:00Z` : new Date().toISOString()));
 
         const response = await fetch("/api/youtube/live-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: streamTitle,
-            description: platformConfigs.youtube.description,
-            privacyStatus: platformConfigs.youtube.visibility,
-            category: platformConfigs.youtube.category,
+            description: configs.youtube.description,
+            privacyStatus: configs.youtube.visibility,
+            category: configs.youtube.category,
             scheduledStartTime: finalStartTime,
             tokens: tokens.google
           })
@@ -851,18 +860,18 @@ export const SocialControl = () => {
       }
 
       if (isLinkedinLive) {
-        const streamTitle = platformConfigs.linkedin.streamTitle || newPostTitle;
-        const finalStartTime = platformConfigs.linkedin.streamDate && platformConfigs.linkedin.streamTime 
-          ? `${platformConfigs.linkedin.streamDate}T${platformConfigs.linkedin.streamTime}:00Z`
-          : (scheduleDate && scheduleTime ? `${scheduleDate}T${scheduleTime}:00Z` : new Date().toISOString());
+        const streamTitle = configs.linkedin.streamTitle || title;
+        const finalStartTime = configs.linkedin.streamDate && configs.linkedin.streamTime 
+          ? `${configs.linkedin.streamDate}T${configs.linkedin.streamTime}:00Z`
+          : (targetPost ? targetPost.time.replace(", ", "T") + ":00Z" : (scheduleDate && scheduleTime ? `${scheduleDate}T${scheduleTime}:00Z` : new Date().toISOString()));
 
         const response = await fetch("/api/linkedin/live-stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: streamTitle,
-            description: platformConfigs.linkedin.description,
-            visibility: platformConfigs.linkedin.visibility,
+            description: configs.linkedin.description,
+            visibility: configs.linkedin.visibility,
             scheduledStartTime: finalStartTime,
             tokens: tokens.linkedin
           })
@@ -876,7 +885,12 @@ export const SocialControl = () => {
         }
       }
 
-      handleSave("Scheduled");
+      if (!targetPost) {
+        handleSave("Scheduled");
+      } else {
+        // Mark as initiated or just alert success
+        setPosts(prev => prev.map(p => p.id === targetPost.id ? { ...p, status: "Ready" } : p));
+      }
     } catch (error: any) {
       console.error("Live Stream Initiation Error:", error);
       alert(`Error initializing neural stream: ${error.message}`);
@@ -1016,7 +1030,72 @@ export const SocialControl = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Global Presets */}
                 <div className="lg:col-span-3">
-                  <h4 className="text-xs font-mono text-nexus-text-dim uppercase tracking-[0.2em] mb-4 border-b border-white/5 pb-2">Global System Presets</h4>
+                  <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
+                    <h4 className="text-xs font-mono text-nexus-text-dim uppercase tracking-[0.2em]">Global System Presets</h4>
+                    <button 
+                      onClick={() => setShowPresetSave(!showPresetSave)}
+                      className={cn(
+                        "text-[10px] font-bold px-3 py-1 rounded-lg border transition-all flex items-center gap-2",
+                        showPresetSave ? "bg-nexus-accent text-black border-nexus-accent" : "text-nexus-accent border-nexus-accent/20 hover:bg-nexus-accent/10"
+                      )}
+                    >
+                      <Plus className="w-3 h-3" />
+                      SAVE CURRENT AS PRESET
+                    </button>
+                  </div>
+
+                  <AnimatePresence>
+                    {showPresetSave && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="mb-6 overflow-hidden"
+                      >
+                        <div className="p-6 rounded-3xl bg-nexus-accent/5 border border-nexus-accent/20 flex flex-col md:flex-row gap-4 items-end">
+                          <div className="flex-1 space-y-2 w-full">
+                            <label className="text-[10px] text-nexus-text-dim uppercase font-mono">New Preset Name</label>
+                            <input 
+                              type="text"
+                              value={newPresetName}
+                              onChange={(e) => setNewPresetName(e.target.value)}
+                              placeholder="e.g. Q3 Launch Strategy, Night Stream Config..."
+                              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:border-nexus-accent/50 transition-all"
+                            />
+                          </div>
+                          <div className="flex-1 space-y-2 w-full">
+                            <label className="text-[10px] text-nexus-text-dim uppercase font-mono">Captured Platforms</label>
+                            <div className="flex flex-wrap gap-2 py-1">
+                              {selectedPlatforms.length === 0 ? (
+                                <span className="text-[10px] text-red-400 italic">No platforms selected in system.</span>
+                              ) : (
+                                selectedPlatforms.map(pid => {
+                                  const P = PLATFORMS.find(p => p.id === pid);
+                                  return P ? <P.icon key={pid} className={cn("w-4 h-4", P.color)} /> : null;
+                                })
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 gap-2 w-full md:w-auto">
+                            <button 
+                              onClick={() => setShowPresetSave(false)}
+                              className="flex-1 md:flex-none px-6 py-2 rounded-xl bg-white/5 text-nexus-text-dim font-bold text-xs hover:bg-white/10 transition-all uppercase"
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              onClick={savePreset}
+                              disabled={!newPresetName.trim() || selectedPlatforms.length === 0}
+                              className="flex-1 md:flex-none px-8 py-2 rounded-xl bg-nexus-accent text-black font-bold text-xs hover:shadow-[0_0_20px_rgba(5,255,161,0.3)] transition-all uppercase disabled:opacity-50"
+                            >
+                              Store Preset
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {presets.length === 0 ? (
                     <div className="p-12 border-2 border-dashed border-white/5 rounded-3xl text-center">
                       <p className="text-sm text-nexus-text-dim">No global neural presets initialized.</p>
@@ -1024,20 +1103,32 @@ export const SocialControl = () => {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {presets.map(preset => (
-                        <div key={preset.name} className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-nexus-accent/30 transition-all group">
+                        <div key={preset.name} className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-nexus-accent/30 transition-all group flex flex-col h-full">
                           <div className="flex justify-between items-start mb-4">
                             <div className="p-2 rounded-lg bg-nexus-accent/10">
                               <Zap className="w-4 h-4 text-nexus-accent" />
                             </div>
-                            <button 
-                              onClick={() => deletePreset(preset.name)}
-                              className="p-1.5 rounded-lg hover:bg-red-500/10 text-nexus-text-dim hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => {
+                                  loadPreset(preset.configs, preset.platforms || []);
+                                  setIsModalOpen(true);
+                                }}
+                                className="p-1.5 rounded-lg bg-nexus-accent/10 text-nexus-accent hover:bg-nexus-accent hover:text-black transition-all opacity-0 group-hover:opacity-100"
+                                title="Apply & Open Modal"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => deletePreset(preset.name)}
+                                className="p-1.5 rounded-lg hover:bg-red-500/10 text-nexus-text-dim hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                           <h5 className="font-bold text-white mb-2">{preset.name}</h5>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-2 mb-4 flex-grow">
                             {preset.platforms?.map(pid => {
                               const P = PLATFORMS.find(p => p.id === pid);
                               return P ? (
@@ -1048,6 +1139,15 @@ export const SocialControl = () => {
                               ) : null;
                             })}
                           </div>
+                          <button 
+                            onClick={() => {
+                              loadPreset(preset.configs, preset.platforms || []);
+                              alert(`Preset "${preset.name}" applied to neural system.`);
+                            }}
+                            className="w-full py-2 bg-white/5 hover:bg-nexus-accent hover:text-black rounded-xl text-[10px] font-bold transition-all border border-white/5 group-hover:border-nexus-accent/50"
+                          >
+                            APPLY TO SYSTEM
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -1074,10 +1174,19 @@ export const SocialControl = () => {
                           <p className="text-[10px] text-nexus-text-dim uppercase font-mono tracking-widest">Protocol Presets</p>
                           <div className="space-y-2">
                             {pList.map(p => (
-                              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all group">
-                                <span className="text-xs font-medium">{p.name}</span>
+                              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:border-nexus-accent/30 transition-all group cursor-pointer" onClick={() => {
+                                loadPlatformPreset(platform.id, p.config);
+                                alert(`${platform.name} protocol "${p.name}" loaded.`);
+                              }}>
+                                <div className="flex items-center gap-3">
+                                  <Bookmark className="w-3.5 h-3.5 text-nexus-text-dim" />
+                                  <span className="text-xs font-medium">{p.name}</span>
+                                </div>
                                 <button 
-                                  onClick={() => deletePlatformPreset(platform.id, p.name)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deletePlatformPreset(platform.id, p.name);
+                                  }}
                                   className="p-1 rounded-md hover:bg-red-500/10 text-nexus-text-dim hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -1093,13 +1202,19 @@ export const SocialControl = () => {
                           <p className="text-[10px] text-nexus-text-dim uppercase font-mono tracking-widest">Callback Routines</p>
                           <div className="space-y-2">
                             {cList.map(p => (
-                              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-nexus-accent/5 border border-nexus-accent/10 hover:bg-nexus-accent/10 transition-all group">
-                                <div className="flex items-center gap-2">
-                                  <Zap className="w-3 h-3 text-nexus-accent" />
+                              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-nexus-accent/5 border border-nexus-accent/10 hover:border-nexus-accent transition-all group cursor-pointer" onClick={() => {
+                                loadCallbackPreset(platform.id, p.config);
+                                alert(`${platform.name} callback "${p.name}" loaded.`);
+                              }}>
+                                <div className="flex items-center gap-3">
+                                  <Zap className="w-3.5 h-3.5 text-nexus-accent" />
                                   <span className="text-xs font-medium">{p.name}</span>
                                 </div>
                                 <button 
-                                  onClick={() => deleteCallbackPreset(platform.id, p.name)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteCallbackPreset(platform.id, p.name);
+                                  }}
                                   className="p-1 rounded-md hover:bg-red-500/10 text-nexus-text-dim hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -1112,6 +1227,43 @@ export const SocialControl = () => {
                     </div>
                   );
                 })}
+
+                {/* API Token Vault */}
+                <div className="lg:col-span-3 pt-8 border-t border-white/5">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Shield className="w-5 h-5 text-nexus-accent" />
+                    <div>
+                      <h4 className="text-sm font-bold uppercase tracking-widest">Neural API Token Vault</h4>
+                      <p className="text-[10px] text-nexus-text-dim uppercase tracking-widest mt-1">Manual integration with platform-specific API tokens</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {PLATFORMS.filter(p => p.id === "youtube" || p.id === "linkedin").map(platform => (
+                      <div key={platform.id} className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <platform.icon className={cn("w-5 h-5", platform.color)} />
+                          <h5 className="font-bold">{platform.name} Token</h5>
+                        </div>
+                        <input 
+                          type="password"
+                          placeholder={`Paste ${platform.name} API Token / Secret...`}
+                          value={tokens[platform.provider]?.accessToken || ""}
+                          onChange={(e) => setTokens(prev => ({
+                            ...prev,
+                            [platform.provider]: { ...prev[platform.provider], accessToken: e.target.value }
+                          }))}
+                          className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:border-nexus-accent/50 transition-all font-mono"
+                        />
+                        <div className="p-3 rounded-xl bg-nexus-accent/5 border border-nexus-accent/10">
+                          <p className="text-[9px] text-nexus-text-dim leading-relaxed italic">
+                            Tokens are stored in temporary neural memory. For production, ensure these are linked to your system environment.
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -1139,7 +1291,7 @@ export const SocialControl = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                {PLATFORMS.map((platform, i) => {
-                 const isConnected = connectedPlatforms.includes(platform.provider);
+                 const isConnected = connectedPlatforms.includes(platform.provider) || !!tokens[platform.provider]?.accessToken;
                  const isThisConnecting = isConnecting === platform.provider;
                  const hasError = connectionError?.provider === platform.provider;
 
@@ -1442,7 +1594,7 @@ export const SocialControl = () => {
                       Content Queue
                     </h3>
                     <div className="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/5">
-                      {["All", "Scheduled", "Draft"].map((f) => (
+                      {["All", "Scheduled", "Draft", "Live"].map((f) => (
                         <button
                           key={f}
                           onClick={() => setPostFilter(f as any)}
@@ -1459,7 +1611,11 @@ export const SocialControl = () => {
                   <div className="space-y-4">
                     <AnimatePresence initial={false}>
                       {posts
-                        .filter(p => postFilter === "All" || p.status === postFilter)
+                        .filter(p => {
+                          if (postFilter === "All") return true;
+                          if (postFilter === "Live") return p.platformConfigs?.youtube?.isLive || p.platformConfigs?.linkedin?.isLive;
+                          return p.status === postFilter;
+                        })
                         .map((post) => (
                         <motion.div 
                           key={post.id}
@@ -1607,7 +1763,10 @@ export const SocialControl = () => {
                                       Edit Configuration
                                     </button>
                                     <button 
-                                      onClick={(e) => e.stopPropagation()}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        initiateLiveStream(post);
+                                      }}
                                       className="px-3 py-1.5 rounded-lg bg-nexus-accent/10 text-nexus-accent text-[10px] font-bold hover:bg-nexus-accent hover:text-black transition-colors uppercase"
                                     >
                                       Instant Broadcast
@@ -2899,8 +3058,8 @@ export const SocialControl = () => {
                 </button>
                 {(selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive) ? (
                   <button 
-                    onClick={initiateLiveStream}
-                    disabled={isInitiatingLive || !newPostTitle || (selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive && !connectedPlatforms.includes("google")) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive && !connectedPlatforms.includes("linkedin"))}
+                    onClick={() => initiateLiveStream()}
+                    disabled={isInitiatingLive || !newPostTitle || (selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive && !connectedPlatforms.includes("google") && !tokens.google?.accessToken) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive && !connectedPlatforms.includes("linkedin") && !tokens.linkedin?.accessToken)}
                     className="px-8 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-white hover:text-black transition-all disabled:opacity-50 flex items-center gap-2"
                   >
                     {isInitiatingLive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
