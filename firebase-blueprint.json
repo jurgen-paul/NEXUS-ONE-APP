@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "ScheduledPost": {
+      "title": "Scheduled Post",
+      "description": "Represents a scheduled news, text, media, or live-stream draft/broadcast.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique post identifier"
+        },
+        "time": {
+          "type": "string",
+          "description": "ISO timestamp of the scheduled broadcast"
+        },
+        "title": {
+          "type": "string",
+          "description": "Broadcast title"
+        },
+        "platformIds": {
+          "type": "array",
+          "description": "Target social platform IDs"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Scheduled", "Draft", "Ready"],
+          "description": "Processing status"
+        },
+        "platformConfigs": {
+          "type": "object",
+          "description": "Protocol configurations for individual targets"
+        }
+      },
+      "required": ["id", "time", "title", "platformIds", "status"]
+    },
+    "Preset": {
+      "title": "Protocol Preset",
+      "description": "Reusable configurations for publishing/streaming presets.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Friendly name of the preset"
+        },
+        "platforms": {
+          "type": "array",
+          "description": "Captured platforms list"
+        },
+        "configs": {
+          "type": "object",
+          "description": "Nested configuration keys and values"
+        }
+      },
+      "required": ["name", "platforms", "configs"]
+    }
+  },
+  "firestore": {
+    "posts": {
+      "schema": "ScheduledPost",
+      "description": "Queue stream of scheduled social media deployments."
+    },
+    "presets": {
+      "schema": "Preset",
+      "description": "Saved reusable templates and system-wide protocol parameters."
+    }
+  }
+}

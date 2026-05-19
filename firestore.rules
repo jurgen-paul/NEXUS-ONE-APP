@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validate a typical post structure
+    function isValidScheduledPost(post) {
+      return post.id is string && post.id.size() <= 200 &&
+             post.title is string && post.title.size() <= 500 &&
+             post.status in ['Scheduled', 'Draft', 'Ready'] &&
+             post.time is string && post.time.size() <= 100 &&
+             post.platformIds is list;
+    }
+
+    // Validate preset structure
+    function isValidPreset(preset) {
+      return preset.name is string && preset.name.size() <= 200 &&
+             preset.platforms is list &&
+             preset.configs is map;
+    }
+
+    // Presets collection rules
+    match /presets/{presetId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(presetId) && isValidPreset(request.resource.data);
+      allow delete: if isSignedIn();
+    }
+
+    // Posts collection rules
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(postId) && isValidScheduledPost(request.resource.data);
+      allow delete: if isSignedIn();
+    }
+  }
+}

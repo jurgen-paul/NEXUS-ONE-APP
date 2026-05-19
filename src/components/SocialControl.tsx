@@ -625,7 +625,17 @@ export const SocialControl = () => {
   const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
   const [platformConfigs, setPlatformConfigs] = useState<Record<string, any>>({
     twitter: { charLimit: 280, thread: false, callback: { enabled: false, trigger: "Mention", keywords: "help, info", action: "Lead Score" } },
-    instagram: { ratio: "1:1", autoCrop: true, callback: { enabled: false, trigger: "Comment", keywords: "price, buy", action: "Direct Message" } },
+    instagram: { 
+      ratio: "1:1", 
+      autoCrop: true, 
+      isLive: false,
+      description: "",
+      streamTitle: "",
+      streamDate: "",
+      streamTime: "",
+      visibility: "public",
+      callback: { enabled: false, trigger: "Comment", keywords: "price, buy", action: "Direct Message" } 
+    },
     linkedin: { 
       visibility: "Public",
       isLive: false,
@@ -752,7 +762,7 @@ export const SocialControl = () => {
     setIsModalOpen(true);
   };
 
-  const syncStreamFields = (platform: "youtube" | "linkedin") => {
+  const syncStreamFields = (platform: "youtube" | "linkedin" | "instagram") => {
     setPlatformConfigs(prev => ({
       ...prev,
       [platform]: {
@@ -822,9 +832,10 @@ export const SocialControl = () => {
     
     const isYoutubeLive = configs?.youtube?.isLive && selected.includes("youtube");
     const isLinkedinLive = configs?.linkedin?.isLive && selected.includes("linkedin");
+    const isInstagramLive = configs?.instagram?.isLive && selected.includes("instagram");
     
-    if ((!isYoutubeLive && !isLinkedinLive) || isInitiatingLive) {
-      if (targetPost && !isYoutubeLive && !isLinkedinLive) {
+    if ((!isYoutubeLive && !isLinkedinLive && !isInstagramLive) || isInitiatingLive) {
+      if (targetPost && !isYoutubeLive && !isLinkedinLive && !isInstagramLive) {
         alert("This post is not configured for a live stream broadcast.");
       }
       return;
@@ -882,6 +893,32 @@ export const SocialControl = () => {
           alert(`LinkedIn Success: ${data.message}`);
         } else {
           throw new Error(data.error || "Failed to initiate LinkedIn live stream");
+        }
+      }
+
+      if (isInstagramLive) {
+        const streamTitle = configs.instagram.streamTitle || title;
+        const finalStartTime = configs.instagram.streamDate && configs.instagram.streamTime 
+          ? `${configs.instagram.streamDate}T${configs.instagram.streamTime}:00Z`
+          : (targetPost ? targetPost.time.replace(", ", "T") + ":00Z" : (scheduleDate && scheduleTime ? `${scheduleDate}T${scheduleTime}:00Z` : new Date().toISOString()));
+
+        const response = await fetch("/api/instagram/live-stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: streamTitle,
+            description: configs.instagram.description,
+            visibility: configs.instagram.visibility,
+            scheduledStartTime: finalStartTime,
+            tokens: tokens.instagram
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(`Instagram Success: ${data.message}\nStream Key: ${data.streamKey}`);
+        } else {
+          throw new Error(data.error || "Failed to initiate Instagram live stream");
         }
       }
 
@@ -1239,7 +1276,7 @@ export const SocialControl = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {PLATFORMS.filter(p => p.id === "youtube" || p.id === "linkedin").map(platform => (
+                    {PLATFORMS.filter(p => p.id === "youtube" || p.id === "linkedin" || p.id === "instagram").map(platform => (
                       <div key={platform.id} className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
                         <div className="flex items-center gap-3">
                           <platform.icon className={cn("w-5 h-5", platform.color)} />
@@ -1613,7 +1650,7 @@ export const SocialControl = () => {
                       {posts
                         .filter(p => {
                           if (postFilter === "All") return true;
-                          if (postFilter === "Live") return p.platformConfigs?.youtube?.isLive || p.platformConfigs?.linkedin?.isLive;
+                          if (postFilter === "Live") return p.platformConfigs?.youtube?.isLive || p.platformConfigs?.linkedin?.isLive || p.platformConfigs?.instagram?.isLive;
                           return p.status === postFilter;
                         })
                         .map((post) => (
@@ -1637,14 +1674,14 @@ export const SocialControl = () => {
                                       <Film className="w-5 h-5 text-nexus-accent" />
                                     </div>
                                   )
-                                ) : post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive ? (
+                                ) : post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive || post.platformConfigs?.instagram?.isLive ? (
                                   <div className="w-full h-full flex items-center justify-center bg-red-500/20">
                                     <Play className="w-5 h-5 text-red-500 fill-red-500" />
                                   </div>
                                 ) : (
                                   <Zap className="w-6 h-6 text-nexus-accent" />
                                 )}
-                                {(post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive) && (
+                                {(post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive || post.platformConfigs?.instagram?.isLive) && (
                                   <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
                                 )}
                               </div>
@@ -1670,12 +1707,12 @@ export const SocialControl = () => {
                               </div>
                               <span className={cn(
                                 "text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-widest",
-                                (post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive) ? "bg-red-500/10 text-red-500" :
+                                (post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive || post.platformConfigs?.instagram?.isLive) ? "bg-red-500/10 text-red-500" :
                                 post.status === "Ready" ? "bg-green-500/10 text-green-500" : 
                                 post.status === "Draft" ? "bg-white/10 text-nexus-text-dim" :
                                 "bg-nexus-accent/10 text-nexus-accent"
                               )}>
-                                {(post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive) ? "Live Stream" : post.status}
+                                {(post.platformConfigs?.youtube?.isLive || post.platformConfigs?.linkedin?.isLive || post.platformConfigs?.instagram?.isLive) ? "Live Stream" : post.status}
                               </span>
                               <ChevronDown className={cn("w-4 h-4 text-nexus-text-dim transition-transform", expandedPost === post.id && "rotate-180")} />
                             </div>
@@ -2614,58 +2651,158 @@ export const SocialControl = () => {
                       )}
 
                       {selectedPlatforms.includes("instagram") && (
-                        <div className="p-4 rounded-2xl bg-pink-500/5 border border-pink-500/10 space-y-3 relative overflow-hidden group">
+                        <div className="p-4 rounded-2xl bg-pink-500/5 border border-pink-500/10 space-y-4 relative overflow-hidden group">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2 text-pink-500">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                platformConfigs.instagram.isLive ? "bg-pink-500 animate-pulse shadow-[0_0_8px_rgba(236,72,153,0.8)]" : "bg-pink-500/20"
+                              )} />
                               <Instagram className="w-4 h-4" />
                               <span className="text-xs font-bold uppercase tracking-wider">Instagram Protocol</span>
                             </div>
-                            {connectedPlatforms.includes("instagram") && (
-                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-pink-500/10 text-pink-500 border border-pink-500/20">
-                                <Shield className="w-2.5 h-2.5" />
-                                <span className="text-[8px] font-bold uppercase tracking-tighter">Secure Link</span>
-                              </div>
-                            )}
+                            <div className="flex items-center gap-3">
+                              {connectedPlatforms.includes("instagram") && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                                  <Shield className="w-2.5 h-2.5" />
+                                  <span className="text-[8px] font-bold uppercase tracking-tighter">Secure Link</span>
+                                </div>
+                              )}
+                              <button 
+                                onClick={() => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, isLive: !prev.instagram.isLive } }))}
+                                className={cn(
+                                  "px-3 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-2",
+                                  platformConfigs.instagram.isLive ? "bg-pink-500 text-white border-pink-500 shadow-lg shadow-pink-500/20" : "bg-white/5 border-white/5 text-nexus-text-dim hover:border-pink-500/30"
+                                )}
+                              >
+                                <Play className="w-3 h-3" />
+                                LIVE STREAM
+                              </button>
+                            </div>
                           </div>
 
-                          <PlatformPresetManager platform="instagram" color="pink-500" />
+                          {platformConfigs.instagram.isLive && (
+                            <div className="space-y-4 p-4 bg-black/20 rounded-xl border border-white/5 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 p-4">
+                                <button 
+                                  onClick={() => syncStreamFields("instagram")}
+                                  className="text-[9px] font-bold text-pink-400 hover:text-white transition-colors flex items-center gap-1"
+                                  title="Sync from Post Title"
+                                >
+                                  <Zap className="w-3 h-3" />
+                                  SYNC
+                                </button>
+                              </div>
 
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Image Ratio</span>
-                            <div className="flex gap-2">
-                              {["1:1", "4:5", "16:9"].map(ratio => (
+                              <PlatformPresetManager platform="instagram" color="pink-500" />
+
+                              <div className="flex items-center gap-2 pb-2 border-b border-white/5 mb-2">
+                                <Settings2 className="w-3 h-3 text-pink-400" />
+                                <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Live Broadcast Tools</span>
+                              </div>
+
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                    <Type className="w-2.5 h-2.5" />
+                                    Broadcast Title
+                                  </label>
+                                  <input 
+                                    type="text"
+                                    value={platformConfigs.instagram.streamTitle}
+                                    onChange={(e) => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, streamTitle: e.target.value } }))}
+                                    placeholder="Enter IG live title..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-pink-500/30 transition-all"
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                    <AlignLeft className="w-2.5 h-2.5" />
+                                    Pinned Message / Description
+                                  </label>
+                                  <textarea 
+                                    value={platformConfigs.instagram.description}
+                                    onChange={(e) => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, description: e.target.value } }))}
+                                    placeholder="Enter pinned stream message..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none h-20 resize-none focus:border-pink-500/30 transition-all"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                      <Calendar className="w-2.5 h-2.5" />
+                                      Date
+                                    </label>
+                                    <input 
+                                      type="date"
+                                      value={platformConfigs.instagram.streamDate}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, streamDate: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-pink-500/30 [color-scheme:dark]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-nexus-text-dim uppercase mb-1.5 flex items-center gap-1.5 font-mono">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      Time
+                                    </label>
+                                    <input 
+                                      type="time"
+                                      value={platformConfigs.instagram.streamTime}
+                                      onChange={(e) => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, streamTime: e.target.value } }))}
+                                      className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-xs outline-none focus:border-pink-500/30 [color-scheme:dark]"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <CallbackSystemControl platform="instagram" />
+                            </div>
+                          )}
+
+                          {!platformConfigs.instagram.isLive && (
+                            <>
+                              <PlatformPresetManager platform="instagram" color="pink-500" />
+
+                              <div className="flex items-center justify-between pt-1">
+                                <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Image Ratio</span>
+                                <div className="flex gap-2">
+                                  {["1:1", "4:5", "16:9"].map(ratio => (
+                                    <button
+                                      key={ratio}
+                                      onClick={() => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, ratio } }))}
+                                      className={cn(
+                                        "px-2 py-1 rounded text-[10px] border transition-all",
+                                        platformConfigs.instagram.ratio === ratio 
+                                          ? "bg-pink-500/20 border-pink-500 text-pink-500" 
+                                          : "bg-white/5 border-white/5 text-nexus-text-dim"
+                                       )}
+                                    >
+                                      {ratio}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-1">
+                                <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Auto-Crop Neural Assets</span>
                                 <button
-                                  key={ratio}
-                                  onClick={() => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, ratio } }))}
+                                  onClick={() => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, autoCrop: !prev.instagram.autoCrop } }))}
                                   className={cn(
                                     "px-2 py-1 rounded text-[10px] border transition-all",
-                                    platformConfigs.instagram.ratio === ratio 
+                                    platformConfigs.instagram.autoCrop 
                                       ? "bg-pink-500/20 border-pink-500 text-pink-500" 
                                       : "bg-white/5 border-white/5 text-nexus-text-dim"
                                   )}
                                 >
-                                  {ratio}
+                                  {platformConfigs.instagram.autoCrop ? "ENABLED" : "DISABLED"}
                                 </button>
-                              ))}
-                            </div>
-                          </div>
+                              </div>
 
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[10px] text-nexus-text-dim uppercase font-mono">Auto-Crop Neural Assets</span>
-                            <button
-                              onClick={() => setPlatformConfigs(prev => ({ ...prev, instagram: { ...prev.instagram, autoCrop: !prev.instagram.autoCrop } }))}
-                              className={cn(
-                                "px-2 py-1 rounded text-[10px] border transition-all",
-                                platformConfigs.instagram.autoCrop 
-                                  ? "bg-pink-500/20 border-pink-500 text-pink-500" 
-                                  : "bg-white/5 border-white/5 text-nexus-text-dim"
-                              )}
-                            >
-                              {platformConfigs.instagram.autoCrop ? "ENABLED" : "DISABLED"}
-                            </button>
-                          </div>
-
-                          <CallbackSystemControl platform="instagram" />
+                              <CallbackSystemControl platform="instagram" />
+                            </>
+                          )}
                         </div>
                       )}
 
@@ -3056,10 +3193,10 @@ export const SocialControl = () => {
                 >
                   CANCEL
                 </button>
-                {(selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive) ? (
+                {(selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive) || (selectedPlatforms.includes("instagram") && platformConfigs.instagram.isLive) ? (
                   <button 
                     onClick={() => initiateLiveStream()}
-                    disabled={isInitiatingLive || !newPostTitle || (selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive && !connectedPlatforms.includes("google") && !tokens.google?.accessToken) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive && !connectedPlatforms.includes("linkedin") && !tokens.linkedin?.accessToken)}
+                    disabled={isInitiatingLive || !newPostTitle || (selectedPlatforms.includes("youtube") && platformConfigs.youtube.isLive && !connectedPlatforms.includes("google") && !tokens.google?.accessToken) || (selectedPlatforms.includes("linkedin") && platformConfigs.linkedin.isLive && !connectedPlatforms.includes("linkedin") && !tokens.linkedin?.accessToken) || (selectedPlatforms.includes("instagram") && platformConfigs.instagram.isLive && !connectedPlatforms.includes("instagram") && !tokens.instagram?.accessToken)}
                     className="px-8 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-white hover:text-black transition-all disabled:opacity-50 flex items-center gap-2"
                   >
                     {isInitiatingLive ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
