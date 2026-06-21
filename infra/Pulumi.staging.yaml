@@ -1,0 +1,4 @@
+config:
+  azure-native:location: westeurope
+environment:
+  - Nexus-one/Oistarian-nexus-one
