@@ -50,51 +50,7 @@ import { CollaborationHub } from "./components/CollaborationHub";
 import { ContentHub } from "./components/ContentHub";
 import { SuperAIGenerator } from "./components/SuperAIGenerator";
 import { DependencyMap } from "./components/DependencyMap";
-
-const SmartDocs = () => (
-  <div className="p-8 space-y-8 max-w-5xl mx-auto">
-    <header className="flex justify-between items-start">
-      <div>
-        <h2 className="text-3xl font-display font-bold">Smart Documents</h2>
-        <p className="text-nexus-text-dim mt-1">Automated form and legal document generation.</p>
-      </div>
-      <button className="px-6 py-2 bg-nexus-accent text-black font-bold rounded-xl flex items-center gap-2 hover:bg-white transition-all">
-        <FilePlus className="w-4 h-4" />
-        CREATE NEW
-      </button>
-    </header>
-
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {[
-        { title: "Service Agreement", type: "Legal", date: "2 mins ago" },
-        { title: "Onboarding Flow", type: "Business", date: "1 hour ago" },
-        { title: "Customer Survey", type: "Marketing", date: "Yesterday" },
-      ].map((doc, i) => (
-        <div key={i} className="glass p-6 rounded-2xl group hover:border-nexus-accent/30 transition-all">
-          <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-4 group-hover:bg-nexus-accent/10 transition-colors">
-            <FileText className="w-6 h-6 text-nexus-text-dim group-hover:text-nexus-accent transition-colors" />
-          </div>
-          <h4 className="font-bold mb-1">{doc.title}</h4>
-          <p className="text-xs text-nexus-text-dim uppercase tracking-widest font-mono">{doc.type}</p>
-          <div className="mt-6 flex justify-between items-center">
-            <span className="text-[10px] text-nexus-text-dim">{doc.date}</span>
-            <div className="flex gap-2">
-              <button className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-colors">
-                <Eye className="w-4 h-4" />
-              </button>
-              <button className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-colors">
-                <Cloud className="w-4 h-4" />
-              </button>
-              <button className="p-2 rounded-lg hover:bg-white/5 text-nexus-text-dim hover:text-white transition-colors">
-                <Download className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
+import { SmartDocs } from "./components/SmartDocs";
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
   <button

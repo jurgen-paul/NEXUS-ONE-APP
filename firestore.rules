@@ -42,6 +42,11 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
+    // Profiles and dashboard states rules
+    match /nexus_profiles/{profileId} {
+      allow read, write: if true; // Accessible via unique profile passkeys (e.g. default-commander)
+    }
+
     // Posts collection rules
     match /posts/{postId} {
       allow read: if isSignedIn();

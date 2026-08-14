@@ -5,3 +5,11 @@ resource "google_project_service" "sourcerepo" {
   # Recommended to keep the API enabled even if the resource is removed from Terraform
   disable_on_destroy = false
 }
+
+resource "google_project_service" "appengine" {
+  project = "oistarian-nexus-commander"
+  service = "appengine.googleapis.com"
+
+  # Recommended to keep the API enabled even if the resource is removed from Terraform
+  disable_on_destroy = false
+}

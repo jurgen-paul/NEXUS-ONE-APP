@@ -131,13 +131,13 @@ export const SmartInbox = () => {
         <div className="w-1/3 border-r border-white/5 overflow-y-auto custom-scrollbar">
           <div className="p-4 space-y-2">
             {sortedMessages.map((msg) => (
-              <motion.button
+              <motion.div
                 key={msg.id}
                 onClick={() => setSelectedId(msg.id)}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 className={cn(
-                  "w-full text-left p-4 rounded-2xl border transition-all relative group",
+                  "w-full text-left p-4 rounded-2xl border transition-all relative group cursor-pointer",
                   selectedId === msg.id 
                     ? "bg-nexus-accent/10 border-nexus-accent/30 shadow-[0_0_20px_rgba(5,255,161,0.1)]" 
                     : "bg-white/5 border-transparent hover:border-white/10"
@@ -188,7 +188,7 @@ export const SmartInbox = () => {
                 {!msg.isRead && (
                   <div className="absolute top-4 right-2 w-1.5 h-1.5 rounded-full bg-nexus-accent shadow-[0_0_5px_rgba(5,255,161,1)]" />
                 )}
-              </motion.button>
+              </motion.div>
             ))}
           </div>
         </div>

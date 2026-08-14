@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Shield, 
@@ -19,7 +19,8 @@ import {
   Code,
   Eye,
   EyeOff,
-  User
+  User,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
@@ -52,6 +53,15 @@ interface Parameter {
   name: string;
   currentVersion: string;
   versions: ParameterVersion[];
+}
+
+interface CloudService {
+  id: string;
+  name: string;
+  apiName: string;
+  description: string;
+  status: "ENABLED" | "DISABLED" | "PENDING";
+  category: "Compute" | "Database" | "Repository" | "AI" | "Management";
 }
 
 const TERRAFORM_SCRIPT = `resource "google_sql_database_instance" "instance" {
@@ -105,6 +115,49 @@ const INITIAL_PARAMETERS: Parameter[] = [
   }
 ];
 
+const INITIAL_SERVICES: CloudService[] = [
+  { 
+    id: "s1", 
+    name: "App Engine Admin API", 
+    apiName: "appengine.googleapis.com", 
+    description: "Provides programmatic access to Google App Engine application management, deployments, scaling settings, and traffic allocation.",
+    status: "ENABLED", 
+    category: "Compute" 
+  },
+  { 
+    id: "s2", 
+    name: "Cloud Source Repositories API", 
+    apiName: "sourcerepo.googleapis.com", 
+    description: "High-performance, private hosted Git repositories on GCP. Seamlessly integrated with App Engine build pipelines.",
+    status: "ENABLED", 
+    category: "Repository" 
+  },
+  { 
+    id: "s3", 
+    name: "Cloud SQL Admin API", 
+    apiName: "sqladmin.googleapis.com", 
+    description: "Enables programmatic control, replication setups, automatic scaling, and credentials management for Google Cloud SQL databases.",
+    status: "ENABLED", 
+    category: "Database" 
+  },
+  { 
+    id: "s4", 
+    name: "Vertex AI API", 
+    apiName: "aiplatform.googleapis.com", 
+    description: "Enables programmatic access to Gemini developers' models, custom NPU agent engines, and foundation embedding models.",
+    status: "ENABLED", 
+    category: "AI" 
+  },
+  { 
+    id: "s5", 
+    name: "Cloud Resource Manager API", 
+    apiName: "cloudresourcemanager.googleapis.com", 
+    description: "Provides hierarchical access control, programmatic Google Cloud project creation, metadata, and service accounts policies.",
+    status: "ENABLED", 
+    category: "Management" 
+  },
+];
+
 export const CloudConfig = () => {
   const [parameters, setParameters] = useState<Parameter[]>(INITIAL_PARAMETERS);
   const [selectedParam, setSelectedParam] = useState<Parameter | null>(INITIAL_PARAMETERS[0]);
@@ -112,11 +165,52 @@ export const CloudConfig = () => {
   const [selectedBlueprint, setSelectedBlueprint] = useState<CloudBlueprint | null>(INITIAL_BLUEPRINTS[0]);
   const [apiKeys, setApiKeys] = useState<APIKey[]>(INITIAL_KEYS);
   const [selectedKey, setSelectedKey] = useState<APIKey | null>(INITIAL_KEYS[0]);
-  const [activeView, setActiveView] = useState<"params" | "blueprints" | "keys">("params");
+  const [activeView, setActiveView] = useState<"params" | "blueprints" | "keys" | "services">("params");
+  const [services, setServices] = useState<CloudService[]>(() => {
+    const saved = localStorage.getItem("nexus_cloud_services");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse cloud services", e);
+      }
+    }
+    return INITIAL_SERVICES;
+  });
+  const [selectedServiceId, setSelectedServiceId] = useState<string>("s1");
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newPayload, setNewPayload] = useState("");
+
+  const selectedService = services.find(s => s.id === selectedServiceId) || services[0];
+
+  const handleToggleService = (id: string) => {
+    const serviceToToggle = services.find(s => s.id === id);
+    if (!serviceToToggle) return;
+    const wasEnabled = serviceToToggle.status === "ENABLED";
+
+    setServices(prev => prev.map(s => {
+      if (s.id === id) {
+        return { ...s, status: "PENDING" as const };
+      }
+      return s;
+    }));
+
+    setTimeout(() => {
+      setServices(prev => {
+        const updated = prev.map(s => {
+          if (s.id === id) {
+            const nextStatus: "ENABLED" | "DISABLED" = wasEnabled ? "DISABLED" : "ENABLED";
+            return { ...s, status: nextStatus };
+          }
+          return s;
+        });
+        localStorage.setItem("nexus_cloud_services", JSON.stringify(updated));
+        return updated;
+      });
+    }, 1500);
+  };
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -188,6 +282,15 @@ export const CloudConfig = () => {
           >
             API Keys
           </button>
+          <button 
+            onClick={() => setActiveView("services")}
+            className={cn(
+              "px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+              activeView === "services" ? "bg-nexus-accent text-black" : "text-nexus-text-dim hover:text-white"
+            )}
+          >
+            Services
+          </button>
         </div>
       </header>
 
@@ -239,7 +342,7 @@ export const CloudConfig = () => {
                   </div>
                   <p className="text-[9px] text-nexus-text-dim truncate font-mono">{bp.type}</p>
                 </button>
-              )) : apiKeys.map((k) => (
+              )) : activeView === "keys" ? apiKeys.map((k) => (
                 <button
                   key={k.id}
                   onClick={() => setSelectedKey(k)}
@@ -255,6 +358,33 @@ export const CloudConfig = () => {
                     <span className="text-xs font-bold text-white uppercase">{k.name}</span>
                   </div>
                   <p className="text-[9px] text-nexus-text-dim truncate font-mono">{k.provider}</p>
+                </button>
+              )) : services.map((srv) => (
+                <button
+                  key={srv.id}
+                  onClick={() => setSelectedServiceId(srv.id)}
+                  className={cn(
+                    "w-full text-left p-4 rounded-xl border transition-all",
+                    selectedServiceId === srv.id 
+                      ? "bg-nexus-accent/10 border-nexus-accent/30" 
+                      : "bg-white/5 border-transparent hover:border-white/10"
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cloud className={cn("w-3.5 h-3.5", selectedServiceId === srv.id ? "text-nexus-accent font-bold" : "text-nexus-text-dim")} />
+                    <span className="text-xs font-bold text-white uppercase truncate">{srv.name}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-[9px] text-nexus-text-dim font-mono">{srv.apiName}</p>
+                    <span className={cn(
+                      "text-[8px] px-1.5 py-0.5 rounded font-bold uppercase",
+                      srv.status === "ENABLED" ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse" : 
+                      srv.status === "PENDING" ? "bg-nexus-accent/10 text-nexus-accent border border-nexus-accent/20" :
+                      "bg-white/10 text-nexus-text-dim border border-white/5"
+                    )}>
+                      {srv.status}
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -464,6 +594,127 @@ export const CloudConfig = () => {
                     <p className="text-[9px] font-mono text-nexus-text-dim uppercase tracking-widest mb-1">Usage Quota</p>
                     <p className="text-xs font-bold text-white uppercase tracking-wider">UNLIMITED</p>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeView === "services" && selectedService && (
+            <div className="p-8 space-y-8 max-w-5xl mx-auto">
+              <section className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 glass p-8 rounded-[40px] border border-nexus-accent/20 bg-nexus-accent/5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <Cloud className="w-32 h-32 text-nexus-accent" />
+                  </div>
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className={cn(
+                      "text-[9px] font-mono px-2 py-0.5 rounded-full font-bold uppercase",
+                      selectedService.category === "Compute" ? "bg-cyan-500/10 text-cyan-400" :
+                      selectedService.category === "Database" ? "bg-amber-500/10 text-amber-400" :
+                      selectedService.category === "Repository" ? "bg-purple-500/10 text-purple-400" :
+                      selectedService.category === "AI" ? "bg-fuchsia-500/10 text-fuchsia-400" :
+                      "bg-slate-500/10 text-slate-400"
+                    )}>
+                      {selectedService.category}
+                    </span>
+                    <span className="text-[10px] text-nexus-text-dim font-mono">// GOOGLE CLOUD SERVICE</span>
+                  </div>
+                  <h2 className="text-3xl font-display font-black text-white uppercase mb-2">
+                    {selectedService.name}
+                  </h2>
+                  <p className="text-nexus-text-dim text-xs font-mono mb-4">{selectedService.apiName}</p>
+                  <p className="text-sm text-nexus-text-dim leading-relaxed max-w-2xl mb-6">
+                    {selectedService.description}
+                  </p>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => handleToggleService(selectedService.id)}
+                      disabled={selectedService.status === "PENDING"}
+                      className={cn(
+                        "px-6 py-2 font-bold rounded-xl text-xs uppercase tracking-widest transition-all flex items-center gap-2",
+                        selectedService.status === "ENABLED" 
+                          ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white"
+                          : "bg-nexus-accent text-black hover:shadow-[0_0_20px_rgba(5,255,161,0.4)]"
+                      )}
+                    >
+                      {selectedService.status === "PENDING" ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" /> Provisioning...
+                        </>
+                      ) : selectedService.status === "ENABLED" ? (
+                        <>Disable Service</>
+                      ) : (
+                        <>Enable Service</>
+                      )}
+                    </button>
+                    <button className="px-6 py-2 glass border-white/10 text-white font-bold rounded-xl text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
+                      <Settings className="w-4 h-4" /> API Parameters
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full md:w-64 space-y-4">
+                  <div className="glass p-4 rounded-2xl border border-white/5">
+                    <p className="text-[9px] font-mono text-nexus-text-dim uppercase tracking-widest mb-1">Service Status</p>
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "w-2 h-2 rounded-full",
+                        selectedService.status === "ENABLED" ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" : 
+                        selectedService.status === "PENDING" ? "bg-nexus-accent animate-ping" : 
+                        "bg-nexus-text-dim"
+                      )} />
+                      <p className="text-lg font-display font-black text-white uppercase">{selectedService.status}</p>
+                    </div>
+                  </div>
+                  <div className="glass p-4 rounded-2xl border border-white/5">
+                    <p className="text-[9px] font-mono text-nexus-text-dim uppercase tracking-widest mb-1">Access Tier</p>
+                    <p className="text-xs font-mono text-nexus-accent font-bold">PLATFORM_INTEGRATED</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Console Logs / Progress indicator */}
+              {selectedService.status === "PENDING" && (
+                <div className="glass p-6 rounded-3xl border border-nexus-accent/20 bg-nexus-accent/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-nexus-accent tracking-widest uppercase animate-pulse">Running Cloud Orchestration...</span>
+                    <span className="text-[10px] font-mono text-nexus-text-dim">EST: 1.5s</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-nexus-accent"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 1.5, ease: "easeInOut" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Live CLI Simulation */}
+              <div className="glass p-6 rounded-3xl border border-white/5 bg-black/40 space-y-4">
+                <div className="flex items-center gap-2 text-xs font-mono text-nexus-text-dim">
+                  <Terminal className="w-4 h-4" />
+                  COMMAND PREVIEW
+                </div>
+                <div className="p-4 rounded-xl bg-black border border-white/5 text-[11px] font-mono leading-relaxed overflow-x-auto whitespace-pre text-nexus-text-dim">
+                  <span className="text-white">$</span> gcloud services {selectedService.status === "ENABLED" ? "disable" : "enable"} {selectedService.apiName} --project=oistarian-nexus-commander
+                  {selectedService.status === "PENDING" ? (
+                    <div className="mt-2 text-nexus-accent animate-pulse font-bold">
+                      Connecting to Google Cloud Manager...
+                      Verifying resource permissions...
+                      Injecting AppEngine configuration matrices...
+                    </div>
+                  ) : selectedService.status === "ENABLED" ? (
+                    <div className="mt-2 text-green-400 font-bold">
+                      {`Operation "operations/acf.5cf7bd0d-b8d9-4820-a612-da6488d9cb91" finished successfully.`}
+                      {`Service API [${selectedService.apiName}] is successfully configured on oistarian-nexus-commander.`}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-red-400 font-bold">
+                      {`Service API [${selectedService.apiName}] has been deactivated for project oistarian-nexus-commander.`}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
