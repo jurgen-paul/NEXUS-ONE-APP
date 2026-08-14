@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence, useScroll, useTransform } from "motion/react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { 
   Box, 
   Layers, 
@@ -13,31 +13,43 @@ import {
   Cpu,
   Globe,
   Maximize,
-  Compass
+  Compass,
+  Camera,
+  CameraOff,
+  Radio,
+  Sliders,
+  Scan,
+  Sparkles,
+  Eye,
+  Crosshair,
+  Volume2,
+  VolumeX,
+  RefreshCw,
+  Sun,
+  ShieldCheck
 } from "lucide-react";
-import { cn } from "@/src/lib/utils";
+import { CameraFeedLayer, VisionFeedMode, RecognizedObject } from "./ar/CameraFeedLayer";
+import { LidarPointCloudCanvas } from "./ar/LidarPointCloudCanvas";
+import { SpatialHoloCube } from "./ar/SpatialHoloCube";
+import { SpatialVisionInspector } from "./ar/SpatialVisionInspector";
+import { spatialAudio } from "./ar/SpatialAudioSynth";
 
-interface SpatialWidget {
-  id: string;
-  title: string;
-  x: number;
-  y: number;
-  z: number;
-  icon: any;
-  color: string;
-  value: string;
-}
+export type ARDisplayMode = "camera_hud" | "lidar_cloud" | "holo_core";
+export type HUDColorTheme = "cyan" | "emerald" | "amber" | "violet";
 
-const SPATIAL_WIDGETS: SpatialWidget[] = [
-  { id: "core", title: "SYSTEM CORE", x: 0, y: 0, z: 100, icon: Cpu, color: "text-nexus-accent", value: "STABLE" },
-  { id: "net", title: "GRID STATUS", x: 150, y: -80, z: 50, icon: Globe, color: "text-blue-400", value: "942 Mbps" },
-  { id: "psy", title: "NEURAL LOAD", x: -150, y: 100, z: 70, icon: Activity, color: "text-purple-400", value: "24%" },
-  { id: "nav", title: "VECTOR PING", x: 120, y: 150, z: 30, icon: Compass, color: "text-cyan-400", value: "COORD: 42.1" },
-];
+export const ARInterface: React.FC = () => {
+  // Main AR Viewport Mode
+  const [displayMode, setDisplayMode] = useState<ARDisplayMode>("camera_hud");
+  const [feedMode, setFeedMode] = useState<VisionFeedMode>("cyber_lidar");
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(true);
+  const [hudTheme, setHudTheme] = useState<HUDColorTheme>("cyan");
+  const [showScanSweep, setShowScanSweep] = useState<boolean>(true);
+  const [depthSlice, setDepthSlice] = useState<number>(85);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [selectedTarget, setSelectedTarget] = useState<RecognizedObject | null>(null);
 
-export const ARInterface = () => {
+  // Mouse Parallax Offset
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [activeWidget, setActiveWidget] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,158 +57,238 @@ export const ARInterface = () => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       setMousePos({
-        x: (e.clientX - rect.left - rect.width / 2) / 20,
-        y: (e.clientY - rect.top - rect.height / 2) / 20,
+        x: (e.clientX - rect.left - rect.width / 2) / (rect.width / 2),
+        y: (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)
       });
     };
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
+  const handleModeChange = (mode: ARDisplayMode) => {
+    if (!isMuted) spatialAudio.playScanSweep();
+    setDisplayMode(mode);
+  };
+
+  const handleFeedChange = (feed: VisionFeedMode) => {
+    if (!isMuted) spatialAudio.playHoloPinch();
+    setFeedMode(feed);
+  };
+
+  const handleTakeSnapshot = () => {
+    // Generate snapshot download payload
+    const reportData = {
+      timestamp: new Date().toISOString(),
+      displayMode,
+      feedMode,
+      selectedTarget,
+      depthSlice,
+      opticalResolution: "1080p 6DoF",
+      spatialAnchorsDetected: 3,
+      quantumCoherence: "99.982%"
+    };
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `nexus-spatial-scan-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div 
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden bg-black flex items-center justify-center perspective-[1000px]"
+      className="relative h-full w-full overflow-hidden bg-black flex flex-col p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 select-none custom-scrollbar"
     >
-      {/* Background Grid - Spatial Reference */}
-      <div className="absolute inset-0 opacity-20 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff1a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff1a_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)]" />
-      </div>
-
-      {/* AR HUD Overlay */}
-      <div className="absolute top-8 left-8 right-8 flex justify-between items-start z-50 pointer-events-none">
-        <div className="space-y-1">
-          <h2 className="text-nexus-accent font-mono text-[10px] tracking-[0.2em] uppercase">AR OPTICS ACTIVE</h2>
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-display font-black tracking-tighter text-white">NEXUS_VISION_Pro</h1>
-            <div className="px-2 py-0.5 rounded border border-nexus-accent/30 bg-nexus-accent/5 text-[8px] font-bold text-nexus-accent uppercase tracking-widest">
-              LENS_v4.2
-            </div>
+      {/* Top Header & Optical Controller Bar */}
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 z-20">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight flex items-center gap-2.5">
+              <Eye className="w-6 h-6 text-cyan-400" />
+              <span>Augmented Reality & Spatial Optics</span>
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-[10px] font-mono font-bold">
+              6DoF SLAM
+            </span>
           </div>
+          <p className="text-nexus-text-dim text-xs sm:text-sm mt-0.5">
+            Real-time visual odometry, LiDAR point cloud scanning, and holographic spatial projection HUD.
+          </p>
         </div>
-        <div className="text-right">
-          <p className="text-white/40 font-mono text-[9px] uppercase tracking-tighter">LATENCY: 0.14ms</p>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="w-2 h-2 rounded-full bg-nexus-accent animate-pulse" />
-            <span className="text-white text-[10px] font-bold font-mono tracking-widest">NEURAL_SYNC_OPTIMAL</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Central Viewport Reticle */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 opacity-30">
-        <div className="w-64 h-64 border border-white/10 rounded-full flex items-center justify-center">
-          <div className="w-32 h-32 border-2 border-dashed border-nexus-accent/20 rounded-full" />
-          <div className="absolute w-[200px] h-[1px] bg-white/5" />
-          <div className="absolute h-[200px] w-[1px] bg-white/5" />
-          <Target className="w-8 h-8 text-nexus-accent opacity-50" />
-        </div>
-      </div>
-
-      {/* Spatial Content Mount */}
-      <motion.div 
-        animate={{ 
-          rotateX: -mousePos.y,
-          rotateY: mousePos.x,
-        }}
-        transition={{ type: "spring", stiffness: 30, damping: 15 }}
-        className="relative w-full h-full flex items-center justify-center preserve-3d"
-      >
-        {/* Holographic Core Dashboard */}
-        <motion.div 
-          initial={{ z: 120 }}
-          className="absolute glass p-8 rounded-[40px] border border-nexus-accent/20 bg-nexus-accent/5 shadow-[0_0_50px_rgba(5,255,161,0.1)] w-[500px]"
-        >
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-nexus-accent/20 text-nexus-accent">
-                <Box className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-tight text-white">Spatial Workspace</h3>
-                <p className="text-[9px] text-nexus-text-dim uppercase font-mono tracking-tighter">Instance: OMEGA_GRID_01</p>
-              </div>
-            </div>
-            <Maximize className="w-4 h-4 text-nexus-text-dim hover:text-white cursor-pointer transition-colors" />
+        {/* Top Control Strip */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-1 p-1 bg-black/60 rounded-2xl border border-white/10 backdrop-blur-md">
+            {[
+              { id: "camera_hud" as ARDisplayMode, label: "Spatial Viewfinder", icon: Camera },
+              { id: "lidar_cloud" as ARDisplayMode, label: "3D LiDAR Scanner", icon: Zap },
+              { id: "holo_core" as ARDisplayMode, label: "Quantum HoloCore", icon: Box }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = displayMode === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleModeChange(tab.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-1.5 ${
+                    isActive
+                      ? "bg-cyan-400 text-black shadow-lg shadow-cyan-400/20"
+                      : "text-nexus-text-dim hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-nexus-accent/30 transition-all cursor-pointer group">
-              <Layers className="w-4 h-4 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-[10px] font-bold uppercase text-white mb-1">Stack Depth</h4>
-              <p className="text-xl font-display font-black text-white">42.8<span className="text-xs font-normal text-nexus-text-dim ml-1">ly</span></p>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-nexus-accent/30 transition-all cursor-pointer group">
-              <Navigation className="w-4 h-4 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h4 className="text-[10px] font-bold uppercase text-white mb-1">Drift Sync</h4>
-              <p className="text-xl font-display font-black text-white">12.4<span className="text-xs font-normal text-nexus-text-dim ml-1">%</span></p>
-            </div>
-          </div>
-
-          <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-nexus-accent" />
-              <span className="text-[9px] font-mono text-nexus-text-dim uppercase">Spatial Projection Active</span>
-            </div>
-            <button className="px-4 py-1.5 bg-nexus-accent text-black text-[10px] font-bold rounded-lg hover:brightness-110 active:scale-95 transition-all">
-              INITIALIZE GESTURE
+          {/* Camera On/Off Toggle */}
+          {displayMode === "camera_hud" && (
+            <button
+              onClick={() => setIsCameraActive((prev) => !prev)}
+              className={`p-2 rounded-xl border transition-all text-xs font-mono flex items-center gap-1.5 ${
+                isCameraActive
+                  ? "bg-green-500/20 text-green-400 border-green-500/40"
+                  : "bg-white/5 text-nexus-text-dim border-white/10 hover:text-white"
+              }`}
+              title="Toggle Live Webcam Device"
+            >
+              {isCameraActive ? <Camera className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
             </button>
-          </div>
-        </motion.div>
+          )}
 
-        {/* Floating Peripheral Widgets */}
-        {SPATIAL_WIDGETS.map((widget) => (
-          <motion.div
-            key={widget.id}
-            initial={{ 
-              top: `calc(50% + ${widget.y}px)`,
-              left: `calc(50% + ${widget.x}px)`,
-              z: widget.z 
-            }}
-            whileHover={{ scale: 1.1, z: widget.z + 50 }}
-            onHoverStart={() => setActiveWidget(widget.id)}
-            onHoverEnd={() => setActiveWidget(null)}
-            className={cn(
-              "absolute glass p-4 rounded-3xl border border-white/10 flex items-center gap-4 cursor-pointer transition-all duration-500 min-w-[180px]",
-              activeWidget === widget.id ? "bg-white/10 border-nexus-accent/30" : "bg-white/5"
-            )}
+          {/* Scan Sweep Toggle */}
+          <button
+            onClick={() => setShowScanSweep((prev) => !prev)}
+            className={`p-2 rounded-xl border transition-all ${
+              showScanSweep
+                ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/40"
+                : "bg-white/5 text-nexus-text-dim border-white/10 hover:text-white"
+            }`}
+            title="Toggle Laser Scan Sweep"
           >
-            <div className={cn("p-2 rounded-xl bg-white/5", widget.color)}>
-              <widget.icon className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-[9px] font-bold uppercase text-nexus-text-dim tracking-widest">{widget.title}</h4>
-              <p className="text-sm font-display font-bold text-white">{widget.value}</p>
-            </div>
-            <ChevronRight className="w-3 h-3 ml-auto text-nexus-text-dim" />
-          </motion.div>
-        ))}
-      </motion.div>
+            <Scan className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
 
-      {/* AR Interaction Tips - Bottom */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-12 z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[10px] font-mono text-white">L</div>
-          <p className="text-[9px] text-nexus-text-dim uppercase tracking-widest">DRAG TO ROTATE WORLD</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[10px] font-mono text-white">R</div>
-          <p className="text-[9px] text-nexus-text-dim uppercase tracking-widest">SCROLL TO ZOOM NEURAL FIELD</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex gap-1">
-            <div className="w-4 h-8 rounded-sm bg-nexus-accent/40" />
-            <div className="w-4 h-8 rounded-sm bg-nexus-accent/20" />
+      {/* Main Layout: AR Viewport Stage + Telemetry Inspector */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-[560px]">
+        {/* AR Stage (8 Columns) */}
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col space-y-4">
+          <div className="relative flex-1 min-h-[460px] rounded-3xl overflow-hidden border border-nexus-border/60 shadow-2xl bg-black flex items-center justify-center">
+            {/* Viewport Vignette & Reticles */}
+            <div className="absolute inset-0 pointer-events-none z-10 border border-cyan-500/20 rounded-3xl shadow-[inset_0_0_80px_rgba(0,0,0,0.8)]" />
+
+            {/* Top Viewport Status HUD */}
+            <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+              <div className="bg-black/80 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-cyan-500/30 flex items-center gap-2 text-xs font-mono text-white shadow-xl">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-cyan-400 font-bold">SLAM 6DoF</span>
+                <span className="text-[10px] text-nexus-text-dim border-l border-white/10 pl-2">
+                  X: {mousePos.x.toFixed(2)} | Y: {mousePos.y.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Top Right: Sensor Feed Mode Switcher for Camera View */}
+            {displayMode === "camera_hud" && (
+              <div className="absolute top-4 right-4 z-20 flex items-center gap-1 bg-black/80 backdrop-blur-md p-1 rounded-2xl border border-white/10">
+                {(["live_camera", "cyber_lidar", "wireframe_mesh", "thermal"] as VisionFeedMode[]).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => handleFeedChange(f)}
+                    className={`px-2.5 py-1 rounded-xl text-[10px] font-mono uppercase transition-all ${
+                      feedMode === f
+                        ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 font-bold"
+                        : "text-nexus-text-dim hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {f.replace("_", " ")}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Display Mode 1: Camera & Visual Odometry HUD */}
+            {displayMode === "camera_hud" && (
+              <CameraFeedLayer
+                mode={feedMode}
+                hudColor={hudTheme}
+                showScanSweep={showScanSweep}
+                selectedTarget={selectedTarget}
+                onSelectTarget={(t) => setSelectedTarget(t)}
+                isCameraActive={isCameraActive}
+                onToggleCamera={() => setIsCameraActive((prev) => !prev)}
+              />
+            )}
+
+            {/* Display Mode 2: Interactive LiDAR 3D Point Cloud */}
+            {displayMode === "lidar_cloud" && (
+              <LidarPointCloudCanvas
+                hudColor={hudTheme}
+                depthSlice={depthSlice}
+              />
+            )}
+
+            {/* Display Mode 3: Quantum Holographic Core */}
+            {displayMode === "holo_core" && (
+              <SpatialHoloCube
+                mouseOffset={mousePos}
+              />
+            )}
+
+            {/* Bottom Viewport Hint */}
+            <div className="absolute bottom-4 left-4 z-20 bg-black/80 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-nexus-text-dim flex items-center gap-2">
+              <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Move cursor for 3D parallax • Hover/Click targets for spatial lock</span>
+            </div>
           </div>
-          <p className="text-[9px] text-nexus-text-dim uppercase tracking-widest">NEURAL GESTURE READY</p>
-        </div>
-      </div>
 
-      {/* Global Navigation Pulse - Bottom Right */}
-      <div className="absolute bottom-8 right-8 glass p-6 rounded-full border border-white/5 flex items-center justify-center pointer-events-auto cursor-pointer group">
-        <Compass className="w-6 h-6 text-nexus-accent group-hover:rotate-[360deg] transition-all duration-1000" />
-        <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-nexus-accent border-2 border-black" />
-        <div className="absolute inset-0 rounded-full border border-nexus-accent/20 animate-ping" />
+          {/* Quick Spatial Modes Action Row */}
+          <div className="grid grid-cols-3 gap-3 font-mono text-xs">
+            <div className="glass p-3 rounded-2xl border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-green-400" />
+                <span className="text-white text-[11px] font-bold">ODOMETRY LOCK</span>
+              </div>
+              <span className="text-green-400 font-bold text-[10px]">SUB-MILLIMETER</span>
+            </div>
+
+            <div className="glass p-3 rounded-2xl border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-cyan-400" />
+                <span className="text-white text-[11px] font-bold">REFRESH RATE</span>
+              </div>
+              <span className="text-cyan-400 font-bold text-[10px]">120 FPS</span>
+            </div>
+
+            <div className="glass p-3 rounded-2xl border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-purple-400" />
+                <span className="text-white text-[11px] font-bold">PHOTON LATENCY</span>
+              </div>
+              <span className="text-purple-400 font-bold text-[10px]">0.12 ms</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Telemetry & Spatial Inspector (4-5 Columns) */}
+        <div className="lg:col-span-5 xl:col-span-4">
+          <SpatialVisionInspector
+            selectedTarget={selectedTarget}
+            mode={displayMode}
+            depthSlice={depthSlice}
+            onDepthSliceChange={setDepthSlice}
+            onTakeSnapshot={handleTakeSnapshot}
+            isMuted={isMuted}
+            onToggleMute={() => setIsMuted((prev) => !prev)}
+          />
+        </div>
       </div>
     </div>
   );
