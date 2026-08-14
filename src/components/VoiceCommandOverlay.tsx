@@ -75,9 +75,10 @@ const INITIAL_LOGS: VoiceCommandLog[] = [
     timestamp: "2 mins ago",
     exactTime: new Date(Date.now() - 120000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     rawSpeech: "Launch quantum teleportation",
-    matchedAction: "Unrecognized instruction. Say 'Help' for command list",
-    status: "warning",
-    confidenceScore: 32,
+    matchedAction: "Navigated to Navigation System (Global Waypoint Routing)",
+    targetModule: Module.NAVIGATION,
+    status: "success",
+    confidenceScore: 97,
     latencyMs: 95,
     source: "microphone"
   },
@@ -247,6 +248,9 @@ export const VoiceCommandOverlay: React.FC<{
     } else if (cleaned.includes("avatar") || cleaned.includes("assistant") || cleaned.includes("persona")) {
       targetMod = Module.ASSISTANT;
       action = "Navigated to Avatar Sync Hub";
+    } else if (cleaned.includes("navigat") || cleaned.includes("gps") || cleaned.includes("route") || cleaned.includes("teleport") || cleaned.includes("quantum")) {
+      targetMod = Module.NAVIGATION;
+      action = "Navigated to Navigation System (Global Node Routing)";
     } else if (cleaned.includes("setting") || cleaned.includes("config")) {
       targetMod = Module.SETTINGS;
       action = "Navigated to App Settings";

@@ -130,9 +130,9 @@ const VOICE_NAVIGATION_MAP: VoiceCommandMapping[] = [
     moduleId: Module.NAVIGATION,
     name: "Navigation System",
     category: "Operations",
-    aliases: ["navigation", "navigation system", "navigation sys", "gps", "routes", "waypoint", "maps", "traffic matrix"],
+    aliases: ["navigation", "navigation system", "navigation sys", "gps", "routes", "waypoint", "maps", "traffic matrix", "teleportation", "quantum teleportation", "quantum teleport", "quantum navigation", "teleport"],
     description: "Real-time global telemetry, waypoint routing, and mission paths.",
-    samplePhrases: ["Open navigation system", "Show GPS map", "Go to waypoint routing"]
+    samplePhrases: ["Open navigation system", "Show GPS map", "Launch quantum navigation"]
   },
   {
     moduleId: Module.CREATOR,
