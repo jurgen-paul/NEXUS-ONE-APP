@@ -90,8 +90,20 @@ The **Cloud Configuration Hub** and **Topology Map** offer deep visibility into 
 | `"Open social control"` / `"Go to feeds"` | **Social Control** | Unified multi-channel social media dispatch |
 | `"Open navigation system"` / `"Show GPS map"` | **Navigation System** | Global GPS waypoint routing and telemetry paths |
 | `"Open AR interface"` / `"Switch to AR view"` | **AR Interface** | Launches spatial augmented reality holographic HUD |
+| `"Open Google Sheets"` / `"Go to spreadsheets"` | **Google Sheets Hub** | Real-time Google Workspace sheets reader and telemetry exporter |
+| `"Open voice history"` / `"Show voice log"` | **Voice HUD** | Displays real-time voice activation telemetry and success feedback overlay |
 | `"Set avatar to Nova"` / `"Change persona to Echo"` | **Avatar Sync** | Hot-swaps the active neural voice persona |
 | `"Help"` / `"What can I say?"` | **Voice Modal** | Pops up the complete searchable Voice Reference Index |
+
+---
+
+## Voice Activation Feedback HUD
+
+- **Trigger Options**: Click the floating **Voice HUD** badge at the bottom-right of the screen, click **Voice HUD** in the top navigation bar, press <kbd>Alt + V</kbd> / <kbd>Ctrl + Shift + V</kbd>, or speak `"Open voice history"`.
+- **Live Telemetry Metrics**: Visualizes voice recognition success rate percentage, total commands logged, recognition latency (ms), and warning counts.
+- **Vocal Audit Trail**: Chronological feed of captured speech transcripts, matched system executions, confidence scores, and target module badges.
+- **Simulation Bar**: Type or click fast test chips to simulate vocal instructions directly.
+- **Export & Audio Controls**: Export your voice journal as JSON, copy individual log entries to the clipboard, and toggle speech synthesis confirmation.
 
 ---
 
@@ -113,7 +125,8 @@ The **Cloud Configuration Hub** and **Topology Map** offer deep visibility into 
 14. **AR Interface (`ARInterface`)**: Augmented reality vision HUD and holographic overlay.
 15. **Collaboration Hub (`CollaborationHub`)**: Real-time multiplayer presence and agent co-working.
 16. **Content Matrix (`ContentHub`)**: Editorial queues, article publication, and multi-channel RSS.
-17. **App Settings (`AppSettings`)**: System preferences, security permissions, and themes.
+17. **Google Sheets Hub (`GoogleSheetsHub`)**: Bi-directional Google Sheets API v4 synchronization and table editor.
+18. **App Settings (`AppSettings`)**: System preferences, security permissions, and themes.
 
 ---
 

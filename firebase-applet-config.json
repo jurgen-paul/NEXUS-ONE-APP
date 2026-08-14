@@ -1,10 +1,12 @@
 {
-  "apiKey": "AIzaSyBKr1l65MhviUg-wHvldrYmNlLGhhdblOc",
-  "authDomain": "nexus-one-app-6143f.firebaseapp.com",
-  "projectId": "nexus-one-app-6143f",
-  "storageBucket": "nexus-one-app-6143f.firebasestorage.app",
-  "messagingSenderId": "288380260608",
-  "appId": "1:288380260608:web:220b9a5e1d459b0568a3e5",
-  "measurementId": "G-C7ZP987X3B",
-  "firestoreDatabaseId": "(default)"
+  "projectId": "nexus-one-493108",
+  "appId": "1:984441969243:web:8d5b7825781546a0c23d7e",
+  "apiKey": "AIzaSyBzSaw4S14gIgVERT39c3bjwTBUaeENFSA",
+  "authDomain": "nexus-one-493108.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-nexusoneapp-84043008-da00-4cfc-93b0-c4bb3fe3a92a",
+  "storageBucket": "nexus-one-493108.firebasestorage.app",
+  "messagingSenderId": "984441969243",
+  "measurementId": "",
+  "oAuthClientId": "984441969243-667j5v1dtsobtcf2vkadmasnafklpmue.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

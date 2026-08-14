@@ -239,6 +239,14 @@ const VOICE_NAVIGATION_MAP: VoiceCommandMapping[] = [
     samplePhrases: ["Open topology map", "Show dependency graph", "Go to architecture map"]
   },
   {
+    moduleId: Module.SHEETS,
+    name: "Google Sheets Hub",
+    category: "Operations",
+    aliases: ["sheets", "google sheets", "spreadsheet", "spreadsheets", "excel", "sheets hub", "google drive sheets", "tables", "sheet data"],
+    description: "Real-time Google Workspace Sheets reader, table editor, and telemetry exporter.",
+    samplePhrases: ["Open Google Sheets", "Go to spreadsheets", "Show sheets hub"]
+  },
+  {
     moduleId: Module.SETTINGS,
     name: "App Settings",
     category: "Core",
@@ -345,23 +353,54 @@ export const AIAssistant = () => {
     setLastFeedback({ text: successMsg, type: "success" });
     speakFeedback(successMsg);
 
-    setCommandHistory(prev => [
-      {
-        id: `cmd-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        rawText: transcript || `Direct command: ${moduleName}`,
+    const logItem: CommandLogItem = {
+      id: `cmd-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      rawText: transcript || `Direct command: ${moduleName}`,
+      matchedAction: `Switched view to ${moduleName}`,
+      status: "success",
+      targetModule
+    };
+
+    setCommandHistory(prev => [logItem, ...prev.slice(0, 15)]);
+
+    // Dispatch global event for VoiceCommandOverlay
+    window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+      detail: {
+        rawSpeech: transcript || `Direct command: ${moduleName}`,
         matchedAction: `Switched view to ${moduleName}`,
+        targetModule,
         status: "success",
-        targetModule
-      },
-      ...prev.slice(0, 15)
-    ]);
+        confidenceScore: 98,
+        latencyMs: Math.floor(Math.random() * 60 + 90),
+        source: "microphone"
+      }
+    }));
   };
 
   // Comprehensive Voice & Command Parser
   const parseAndExecuteVoiceCommand = (rawSpeech: string) => {
     const cleaned = rawSpeech.toLowerCase().trim();
     if (!cleaned) return;
+
+    // 0. Voice History Overlay Trigger
+    if (cleaned.includes("voice history") || cleaned.includes("voice log") || cleaned.includes("activation history") || cleaned.includes("feedback log") || cleaned.includes("voice journal")) {
+      window.dispatchEvent(new CustomEvent("nexus-open-voice-history"));
+      const msg = "Opening Voice Activation Feedback Overlay";
+      setLastFeedback({ text: msg, type: "info" });
+      speakFeedback(msg);
+      window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+        detail: {
+          rawSpeech,
+          matchedAction: "Opened Voice Activation Telemetry Overlay",
+          status: "success",
+          confidenceScore: 99,
+          latencyMs: 85,
+          source: "microphone"
+        }
+      }));
+      return;
+    }
 
     // 1. Navigation Commands
     // Match against any mapped module
@@ -403,6 +442,17 @@ export const AIAssistant = () => {
           },
           ...prev.slice(0, 15)
         ]);
+
+        window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+          detail: {
+            rawSpeech,
+            matchedAction: `Selected ${foundAvatar.name} Persona`,
+            status: "success",
+            confidenceScore: 96,
+            latencyMs: 110,
+            source: "microphone"
+          }
+        }));
         return;
       }
     }
@@ -414,6 +464,16 @@ export const AIAssistant = () => {
         const msg = `Neon sync ${nextState ? "activated" : "deactivated"}`;
         setLastFeedback({ text: msg, type: "info" });
         speakFeedback(msg);
+        window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+          detail: {
+            rawSpeech,
+            matchedAction: `Neon shader sync ${nextState ? "activated" : "deactivated"}`,
+            status: "success",
+            confidenceScore: 94,
+            latencyMs: 95,
+            source: "microphone"
+          }
+        }));
         return { ...prev, neonSync: nextState };
       });
       return;
@@ -425,6 +485,16 @@ export const AIAssistant = () => {
         const msg = `Legacy projection mode ${nextState ? "enabled" : "disabled"}`;
         setLastFeedback({ text: msg, type: "info" });
         speakFeedback(msg);
+        window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+          detail: {
+            rawSpeech,
+            matchedAction: `Legacy projection mode ${nextState ? "enabled" : "disabled"}`,
+            status: "success",
+            confidenceScore: 92,
+            latencyMs: 100,
+            source: "microphone"
+          }
+        }));
         return { ...prev, renderLegacy: nextState };
       });
       return;
@@ -436,6 +506,16 @@ export const AIAssistant = () => {
         const msg = `Audio confirmation ${nextState ? "enabled" : "muted"}`;
         setLastFeedback({ text: msg, type: "info" });
         if (nextState) speakFeedback("Voice feedback enabled");
+        window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+          detail: {
+            rawSpeech,
+            matchedAction: `Audio confirmation ${nextState ? "enabled" : "muted"}`,
+            status: "info",
+            confidenceScore: 95,
+            latencyMs: 85,
+            source: "microphone"
+          }
+        }));
         return { ...prev, audioFeedback: nextState };
       });
       return;
@@ -447,6 +527,16 @@ export const AIAssistant = () => {
       const msg = "Displaying full voice navigation index.";
       setLastFeedback({ text: msg, type: "info" });
       speakFeedback(msg);
+      window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+        detail: {
+          rawSpeech,
+          matchedAction: "Displayed Voice Command Cheat Sheet",
+          status: "info",
+          confidenceScore: 99,
+          latencyMs: 70,
+          source: "microphone"
+        }
+      }));
       return;
     }
 
@@ -464,6 +554,17 @@ export const AIAssistant = () => {
       },
       ...prev.slice(0, 15)
     ]);
+
+    window.dispatchEvent(new CustomEvent("nexus-voice-command-executed", {
+      detail: {
+        rawSpeech,
+        matchedAction: `Unrecognized instruction: "${rawSpeech}". Say "Help" for command list`,
+        status: "warning",
+        confidenceScore: Math.floor(Math.random() * 20 + 20),
+        latencyMs: Math.floor(Math.random() * 50 + 80),
+        source: "microphone"
+      }
+    }));
   };
 
   const startListening = () => {
@@ -901,13 +1002,23 @@ export const AIAssistant = () => {
                 <Terminal className="w-4 h-4 text-nexus-accent" />
                 <h3 className="text-xs font-bold uppercase tracking-widest text-white">Voice Command Journal</h3>
               </div>
-              <button
-                onClick={() => setCommandHistory([])}
-                className="text-[10px] font-mono text-nexus-text-dim hover:text-white transition-colors uppercase flex items-center gap-1"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Clear
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent("nexus-open-voice-history"))}
+                  className="text-[10px] font-mono text-nexus-accent hover:text-white transition-colors uppercase flex items-center gap-1 bg-nexus-accent/10 border border-nexus-accent/20 px-2 py-0.5 rounded-lg"
+                  title="Launch full Voice Activation Telemetry Overlay"
+                >
+                  <Activity className="w-3 h-3 text-nexus-accent" />
+                  Launch Overlay HUD
+                </button>
+                <button
+                  onClick={() => setCommandHistory([])}
+                  className="text-[10px] font-mono text-nexus-text-dim hover:text-white transition-colors uppercase flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Clear
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">

@@ -18,6 +18,7 @@ export enum Module {
   CONTENT_HUB = "CONTENT_HUB",
   AI_GENERATOR = "AI_GENERATOR",
   DEPENDENCY_MAP = "DEPENDENCY_MAP",
+  SHEETS = "SHEETS",
 }
 
 export interface NavItem {

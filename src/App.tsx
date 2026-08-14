@@ -27,7 +27,8 @@ import {
   Shield,
   Newspaper,
   Wand2,
-  Network
+  Network,
+  FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { Module } from "@/src/types";
@@ -51,6 +52,8 @@ import { ContentHub } from "./components/ContentHub";
 import { SuperAIGenerator } from "./components/SuperAIGenerator";
 import { DependencyMap } from "./components/DependencyMap";
 import { SmartDocs } from "./components/SmartDocs";
+import { GoogleSheetsHub } from "./components/GoogleSheetsHub";
+import { VoiceCommandOverlay } from "./components/VoiceCommandOverlay";
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
   <button
@@ -104,6 +107,7 @@ export default function App() {
     { id: Module.CONTENT_HUB, label: "Content Matrix", icon: Newspaper },
     { id: Module.AI_GENERATOR, label: "Neural Architect", icon: Wand2 },
     { id: Module.DEPENDENCY_MAP, label: "Topology Map", icon: Network },
+    { id: Module.SHEETS, label: "Google Sheets", icon: FileSpreadsheet },
   ];
 
   return (
@@ -180,6 +184,14 @@ export default function App() {
               <ShieldCheck className="w-4 h-4 text-green-400" />
               ENCRYPTION: AES-256
             </div>
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent("nexus-open-voice-history"))}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-nexus-accent/20 border border-white/10 hover:border-nexus-accent/40 text-xs font-mono text-nexus-text transition-all group"
+              title="Voice Activation Telemetry (Alt+V)"
+            >
+              <span className="w-2 h-2 rounded-full bg-nexus-accent animate-pulse" />
+              <span className="group-hover:text-white">Voice HUD</span>
+            </button>
             <button className="relative p-2 text-nexus-text-dim hover:text-white transition-colors">
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-nexus-accent rounded-full neon-glow" />
@@ -215,9 +227,10 @@ export default function App() {
               {activeModule === Module.CONTENT_HUB && <ContentHub />}
               {activeModule === Module.AI_GENERATOR && <SuperAIGenerator />}
               {activeModule === Module.DEPENDENCY_MAP && <DependencyMap />}
+              {activeModule === Module.SHEETS && <GoogleSheetsHub />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB, Module.AI_GENERATOR, Module.DEPENDENCY_MAP].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB, Module.AI_GENERATOR, Module.DEPENDENCY_MAP, Module.SHEETS].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>
@@ -241,6 +254,9 @@ export default function App() {
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-nexus-accent/5 blur-[120px] rounded-full" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/5 blur-[120px] rounded-full" />
         </div>
+
+        {/* Global Voice Activation History & Telemetry HUD Overlay */}
+        <VoiceCommandOverlay onNavigate={(mod) => setActiveModule(mod)} />
       </main>
     </div>
   );

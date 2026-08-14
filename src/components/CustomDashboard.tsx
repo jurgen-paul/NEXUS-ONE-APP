@@ -41,7 +41,8 @@ import {
   RefreshCw,
   Link2,
   CheckCircle2,
-  Edit3
+  Edit3,
+  FileSpreadsheet
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 import { 
@@ -83,6 +84,7 @@ const PINNABLE_MODULES = [
   { id: "AI_ENGINE", name: "AI Engine", icon: Cpu, metric: "Ops: 12k/s", trend: "Optimal" },
   { id: "SMART_INBOX", name: "Smart Inbox", icon: Inbox, metric: "Unread: 12", trend: "High Priority" },
   { id: "CLOUD_CONFIG", name: "Cloud Config", icon: Shield, metric: "Params: 4", trend: "Secure" },
+  { id: "SHEETS", name: "Google Sheets", icon: FileSpreadsheet, metric: "Sync: Live v4", trend: "Google API" },
   { id: "CREATOR", name: "Insta-Builder", icon: Layout, metric: "Drafts: 8", trend: "Active" },
 ];
 
