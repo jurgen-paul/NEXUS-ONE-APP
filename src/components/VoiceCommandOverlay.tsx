@@ -215,6 +215,9 @@ export const VoiceCommandOverlay: React.FC<{
     if (cleaned.includes("sheet") || cleaned.includes("spreadsheet") || cleaned.includes("excel")) {
       targetMod = Module.SHEETS;
       action = "Navigated to Google Sheets Hub";
+    } else if (cleaned.includes("mail") || cleaned.includes("gmail") || cleaned.includes("inbox") || cleaned.includes("email")) {
+      targetMod = Module.COMMUNICATION;
+      action = "Navigated to Mail Hub (Live Gmail & Neural Streams)";
     } else if (cleaned.includes("ai") || cleaned.includes("engine") || cleaned.includes("model")) {
       targetMod = Module.AI_ENGINE;
       action = "Navigated to Unified AI Engine";
@@ -251,6 +254,12 @@ export const VoiceCommandOverlay: React.FC<{
     } else if (cleaned.includes("navigat") || cleaned.includes("gps") || cleaned.includes("route") || cleaned.includes("teleport") || cleaned.includes("quantum")) {
       targetMod = Module.NAVIGATION;
       action = "Navigated to Navigation System (Global Node Routing)";
+    } else if (cleaned.includes("tour") || cleaned.includes("onboard") || cleaned.includes("guide")) {
+      window.dispatchEvent(new CustomEvent("nexus-open-system-tour"));
+      action = "Launched NEXUS ONE System Tour Onboarding";
+    } else if (cleaned.includes("content") || cleaned.includes("matrix") || cleaned.includes("video") || cleaned.includes("image") || cleaned.includes("code") || cleaned.includes("book") || cleaned.includes("email") || cleaned.includes("generator")) {
+      targetMod = Module.CONTENT_HUB;
+      action = "Navigated to Content Matrix Studio (Video, Image, Code, Books, Emails)";
     } else if (cleaned.includes("setting") || cleaned.includes("config")) {
       targetMod = Module.SETTINGS;
       action = "Navigated to App Settings";

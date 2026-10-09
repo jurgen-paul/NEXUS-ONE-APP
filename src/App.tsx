@@ -53,7 +53,10 @@ import { SuperAIGenerator } from "./components/SuperAIGenerator";
 import { DependencyMap } from "./components/DependencyMap";
 import { SmartDocs } from "./components/SmartDocs";
 import { GoogleSheetsHub } from "./components/GoogleSheetsHub";
+import { MailHub } from "./components/MailHub";
 import { VoiceCommandOverlay } from "./components/VoiceCommandOverlay";
+import { SystemTourModal } from "./components/tour/SystemTourModal";
+import { Compass } from "lucide-react";
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
   <button
@@ -75,18 +78,42 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label:
 );
 
 export default function App() {
+  const [activeModule, setActiveModule] = useState<Module>(Module.DASHBOARD);
+  const [isSidebarOpen] = useState(true);
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
   useEffect(() => {
     const handleNavigate = (e: any) => {
       if (Object.values(Module).includes(e.detail)) {
         setActiveModule(e.detail as Module);
       }
     };
-    window.addEventListener("nexus-navigate", handleNavigate);
-    return () => window.removeEventListener("nexus-navigate", handleNavigate);
-  }, []);
 
-  const [activeModule, setActiveModule] = useState<Module>(Module.DASHBOARD);
-  const [isSidebarOpen] = useState(true);
+    const handleOpenTour = () => {
+      setIsTourOpen(true);
+    };
+
+    window.addEventListener("nexus-navigate", handleNavigate);
+    window.addEventListener("nexus-open-system-tour", handleOpenTour);
+
+    // Auto-launch tour for first-time accountholders
+    const hasCompletedTour = localStorage.getItem("nexus_has_completed_tour");
+    if (!hasCompletedTour) {
+      const timer = setTimeout(() => {
+        setIsTourOpen(true);
+      }, 1000);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("nexus-navigate", handleNavigate);
+        window.removeEventListener("nexus-open-system-tour", handleOpenTour);
+      };
+    }
+
+    return () => {
+      window.removeEventListener("nexus-navigate", handleNavigate);
+      window.removeEventListener("nexus-open-system-tour", handleOpenTour);
+    };
+  }, []);
 
   const navItems = [
     { id: Module.DASHBOARD, label: "Command Center", icon: LayoutDashboard },
@@ -185,6 +212,14 @@ export default function App() {
               ENCRYPTION: AES-256
             </div>
             <button 
+              onClick={() => setIsTourOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/25 border border-cyan-500/30 text-xs font-mono text-cyan-300 transition-all group shadow-sm"
+              title="Launch Interactive System Tour"
+            >
+              <Compass className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-45 transition-transform" />
+              <span>System Tour</span>
+            </button>
+            <button 
               onClick={() => window.dispatchEvent(new CustomEvent("nexus-open-voice-history"))}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-nexus-accent/20 border border-white/10 hover:border-nexus-accent/40 text-xs font-mono text-nexus-text transition-all group"
               title="Voice Activation Telemetry (Alt+V)"
@@ -221,7 +256,8 @@ export default function App() {
               {activeModule === Module.SALES && <SalesIntelligence />}
               {activeModule === Module.AR_VIEW && <ARInterface />}
               {activeModule === Module.ASSISTANT && <AIAssistant />}
-              {activeModule === Module.SMART_INBOX && <SmartInbox />}
+              {activeModule === Module.COMMUNICATION && <MailHub />}
+              {activeModule === Module.SMART_INBOX && <MailHub />}
               {activeModule === Module.CLOUD_CONFIG && <CloudConfig />}
               {activeModule === Module.COLLABORATION && <CollaborationHub />}
               {activeModule === Module.CONTENT_HUB && <ContentHub />}
@@ -230,7 +266,7 @@ export default function App() {
               {activeModule === Module.SHEETS && <GoogleSheetsHub />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB, Module.AI_GENERATOR, Module.DEPENDENCY_MAP, Module.SHEETS].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.COMMUNICATION, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB, Module.AI_GENERATOR, Module.DEPENDENCY_MAP, Module.SHEETS].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>
@@ -257,6 +293,13 @@ export default function App() {
 
         {/* Global Voice Activation History & Telemetry HUD Overlay */}
         <VoiceCommandOverlay onNavigate={(mod) => setActiveModule(mod)} />
+
+        {/* Global System Tour Onboarding Modal */}
+        <SystemTourModal 
+          isOpen={isTourOpen} 
+          onClose={() => setIsTourOpen(false)} 
+          onNavigateToModule={(mod) => setActiveModule(mod)} 
+        />
       </main>
     </div>
   );

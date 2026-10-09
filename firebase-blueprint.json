@@ -52,9 +52,44 @@
         }
       },
       "required": ["name", "platforms", "configs"]
+    },
+    "NexusProfile": {
+      "title": "Nexus Profile",
+      "description": "Saved profile preferences, dashboard layouts and document drafts.",
+      "type": "object",
+      "properties": {
+        "profileId": {
+          "type": "string",
+          "description": "Unique profile identifier"
+        },
+        "data": {
+          "type": "object",
+          "description": "Dynamic profile state payload"
+        }
+      },
+      "required": ["profileId"]
+    },
+    "TestConnection": {
+      "title": "Test Connection",
+      "description": "Heartbeat probe for testing Firestore server connectivity.",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Status string"
+        }
+      }
     }
   },
   "firestore": {
+    "test": {
+      "schema": "TestConnection",
+      "description": "Connectivity test collection."
+    },
+    "nexus_profiles": {
+      "schema": "NexusProfile",
+      "description": "Saved user profiles and preferences."
+    },
     "posts": {
       "schema": "ScheduledPost",
       "description": "Queue stream of scheduled social media deployments."

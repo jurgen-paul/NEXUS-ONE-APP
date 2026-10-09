@@ -35,6 +35,11 @@ service cloud.firestore {
              preset.configs is map;
     }
 
+    // Test collection for initial connectivity checks
+    match /test/{docId} {
+      allow read: if true;
+    }
+
     // Presets collection rules
     match /presets/{presetId} {
       allow read: if isSignedIn();

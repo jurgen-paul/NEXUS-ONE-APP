@@ -8,7 +8,9 @@ import firebaseConfig from "../../firebase-applet-config.json";
 const app = initializeApp(firebaseConfig);
 
 // Initialize services
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = (firebaseConfig as any).firestoreDatabaseId 
+  ? getFirestore(app, (firebaseConfig as any).firestoreDatabaseId)
+  : getFirestore(app);
 export const auth = getAuth(app);
 
 export enum OperationType {
@@ -58,22 +60,33 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Initialize Analytics conditionally (safeguarded for browser environment)
-export const analyticsPromise = isSupported().then((supported) => {
-  if (supported) {
-    return getAnalytics(app);
-  }
-  return null;
-});
+// Initialize Analytics conditionally (safeguarded for browser/iframe environment)
+export const analyticsPromise = isSupported()
+  .then((supported) => {
+    if (supported && firebaseConfig.measurementId && firebaseConfig.measurementId.trim() !== "") {
+      try {
+        return getAnalytics(app);
+      } catch (err) {
+        console.warn("Analytics initialization skipped:", err);
+        return null;
+      }
+    }
+    return null;
+  })
+  .catch((err) => {
+    console.warn("Analytics not supported in this environment:", err);
+    return null;
+  });
 
-// Validate Connection to Firestore on initial boot
+// Validate Connection to Firestore on initial boot gracefully
 async function testConnection() {
   try {
-    await getDocFromServer(doc(db, "test", "connection"));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("the client is offline")) {
-      console.error("Please check your Firebase configuration.");
+    if (typeof window !== "undefined" && navigator.onLine) {
+      await getDocFromServer(doc(db, "test", "connection"));
     }
+  } catch (error) {
+    // Gracefully ignore initial offline cache / initial handshake warmup
+    console.debug("Firestore initial probe status:", error);
   }
 }
 testConnection();
