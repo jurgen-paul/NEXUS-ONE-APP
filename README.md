@@ -187,8 +187,31 @@ Ensure 100% deobfuscated crash traces and native call stacks in **Google Play Co
 | `"Open collaboration"` / `"Go to comms room"` | **Collaboration Hub** | Opens team chat matrix, spatial memos, and marketplace |
 | `"Open content matrix"` / `"Show media studio"` | **Content Matrix** | Opens multimedia studio, blog writer, and showbiz news |
 | `"Open voice history"` / `"Show voice log"` | **Voice HUD** | Displays real-time voice activation telemetry and success feedback overlay |
+| `"Open blogposts"` / `"Show articles"` | **Content Blogposts** | Opens the multi-platform BlogPost Studio & reader |
 | `"Set avatar to Nova"` / `"Change persona to Echo"` | **Avatar Sync** | Hot-swaps the active neural voice persona |
 | `"Help"` / `"What can I say?"` | **Voice Modal** | Pops up the complete searchable Voice Reference Index |
+
+---
+
+## Global Neural Search & Keyboard Navigation (`Cmd+K` / `Ctrl+K`)
+
+NEXUS ONE features a lightning-fast universal command palette and neural search engine directly integrated into the mission control header:
+
+- **Global Shortcut**: Press `Cmd + K` (macOS) or `Ctrl + K` (Windows/Linux) from anywhere in the applet to instantly focus the `'Search neural network'` input field.
+- **Instant Destination Filtering**: Live fuzzy search across all 20 command modules, 5 core content blog posts, and quick actions.
+- **Keyboard Traversal**: Use `↑` / `↓` arrow keys and `Enter` to lock onto destinations and execute zero-latency transitions. Press `Escape` to blur and dismiss.
+- **Direct Article Deep-Linking**: Querying `#blog` or any article keywords (`"spatial"`, `"openssf"`, `"swarms"`, `"showbiz"`) jumps directly to the article inside the immersive volumetric reader.
+
+---
+
+## Content BlogPost Studio & Syndication Suite
+
+The dedicated **Content Blogposts** module (`Module.BLOGPOSTS`) delivers an end-to-end publishing pipeline for technical thought leadership and showbiz analytics:
+
+- **AI Ghostwriter Outline Generator**: Enter target topics or keywords to autonomously generate SEO-optimized titles, executive summaries, and structured markdown drafts.
+- **Split-Screen Studio**: Live Markdown editor with real-time article card previews, cover image customization, and SEO scoring (0–100%).
+- **Multi-Platform Dispatch**: 1-click publishing targeting Nexus Portal, Substack, Medium, Dev.to, and WordPress.
+- **Immersive Reader Mode**: Distraction-free volumetric reader featuring author bios, reaction flames, markdown syntax styling, and 1-click shareable URLs.
 
 ---
 

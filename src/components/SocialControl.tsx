@@ -42,7 +42,7 @@ import {
   Shield
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { GoogleGenAI } from "@google/genai";
+import { generateAiText } from "@/src/lib/geminiClient";
 import { 
   AreaChart, 
   Area, 
@@ -475,7 +475,6 @@ export const SocialControl = () => {
     if (!textToSummarize) return;
     setIsSummarizing(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Summarize the following long-form content into high-impact social media captions optimized for the NEXUS ONE platform. 
       You MUST provide exactly two variations:
       1. A short, punchy variation for Twitter/X (under 280 characters).
@@ -492,16 +491,13 @@ export const SocialControl = () => {
       "hashtags": 2-3 relevant hashtags (as a string)
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          systemInstruction: "You are the NEXUS ONE Content Distiller. You perform hyper-efficient neural summarization for maximum social engagement."
-        }
+      const response = await generateAiText({
+        prompt,
+        responseMimeType: "application/json",
+        systemInstruction: "You are the NEXUS ONE Content Distiller. You perform hyper-efficient neural summarization for maximum social engagement."
       });
 
-      const data = JSON.parse(response.text || "[]");
+      const data = response.data || JSON.parse(response.text || "[]");
       if (activeTab === "generator") {
         setGeneratedIdeas(data);
       } else {
@@ -665,18 +661,13 @@ export const SocialControl = () => {
     
     setIsGeneratingCaption(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
       const prompt = `Generate a short, engaging social media caption for a post with the following title/context: "${newPostTitle}". 
       ${attachedMedia.length > 0 ? `The post includes ${attachedMedia.length} media assets.` : ""}
       The tone should be futuristic, professional, and slightly hype-driven. Include 2-3 relevant hashtags.`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: "You are the NEXUS ONE Social Media AI. You generate high-engagement captions that are futuristic and professional."
-        }
+      const response = await generateAiText({
+        prompt,
+        systemInstruction: "You are the NEXUS ONE Social Media AI. You generate high-engagement captions that are futuristic and professional."
       });
 
       const text = response.text || "";
@@ -692,7 +683,6 @@ export const SocialControl = () => {
     if (!generatorPrompt) return;
     setIsGeneratingIdeas(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Generate 3 creative and high-engagement social media post ideas based on this topic: "${generatorPrompt}". 
       For each idea, provide:
       1. A short, catchy title/idea.
@@ -700,18 +690,14 @@ export const SocialControl = () => {
       3. A list of 3-5 relevant hashtags.
       Format the response as a JSON array of objects with keys: "idea", "caption", "hashtags" (as a string).`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json",
-          systemInstruction: "You are the NEXUS ONE Content Strategist. You generate innovative, high-engagement content ideas in JSON format."
-        }
+      const response = await generateAiText({
+        prompt,
+        responseMimeType: "application/json",
+        systemInstruction: "You are the NEXUS ONE Content Strategist. You generate innovative, high-engagement content ideas in JSON format."
       });
 
-      const text = response.text || "[]";
-      const ideas = JSON.parse(text);
-      setGeneratedIdeas(ideas);
+      const ideas = response.data || JSON.parse(response.text || "[]");
+      setGeneratedIdeas(Array.isArray(ideas) ? ideas : []);
     } catch (error) {
       console.error("Idea Generation Error:", error);
     } finally {

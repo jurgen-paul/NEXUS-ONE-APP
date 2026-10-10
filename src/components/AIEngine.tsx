@@ -28,12 +28,10 @@ import {
   MousePointer2,
   BookOpen
 } from "lucide-react";
-import { GoogleGenAI, Modality } from "@google/genai";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/src/lib/utils";
 import { NEXUS_NPU } from "@/src/lib/neuralCompute";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { generateAiText, generateAiImage, generateAiSpeech } from "@/src/lib/geminiClient";
 
 interface Message {
   role: "user" | "assistant";
@@ -263,31 +261,27 @@ export const AIEngine = () => {
     if (isSpeaking) return;
     setIsSpeaking(true);
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-tts-preview",
-        contents: [{ parts: [{ text: `Say with a futuristic, intelligent tone: ${text}` }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Zephyr' },
-            },
-          },
-        },
+      const speechRes = await generateAiSpeech({
+        text: `Say with a futuristic, intelligent tone: ${text}`,
+        voiceName: "Zephyr"
       });
 
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (base64Audio) {
-        if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        const arrayBuffer = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0)).buffer;
-        const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
-        const source = audioContextRef.current.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioContextRef.current.destination);
-        source.onended = () => setIsSpeaking(false);
-        source.start(0);
+      if (speechRes.audioUrl) {
+        const audio = new Audio(speechRes.audioUrl);
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => setIsSpeaking(false);
+        await audio.play().catch(() => {
+          setIsSpeaking(false);
+        });
+      } else if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        // High quality web speech synthesis fallback
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.05;
+        utterance.pitch = 0.95;
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        window.speechSynthesis.speak(utterance);
       } else {
         setIsSpeaking(false);
       }
@@ -305,45 +299,22 @@ export const AIEngine = () => {
     updateActiveSession(updatedMessages);
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-image-preview',
-        contents: {
-          parts: [
-            { text: `Synthesize a high-fidelity, futuristic NEXUS visual: ${prompt}. Cinematic lighting, hyper-detailed, 8k resolution, sci-fi aesthetic.` },
-          ],
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: selectedAspectRatio,
-            imageSize: selectedImageSize
-          }
-        }
+      const result = await generateAiImage({
+        prompt: `Synthesize a high-fidelity, futuristic NEXUS visual: ${prompt}. Cinematic lighting, hyper-detailed, 8k resolution, sci-fi aesthetic.`,
+        aspectRatio: selectedAspectRatio,
+        imageSize: selectedImageSize
       });
 
-      let foundImage = false;
-      if (response.candidates?.[0]?.content?.parts) {
-        for (const part of response.candidates[0].content.parts) {
-          if (part.inlineData) {
-            const imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-            const assistantMsg: Message = { 
-              role: "assistant", 
-              content: `Visual synthesis complete for protocol: ${prompt}. Aspect Ratio: ${selectedAspectRatio} | Output: ${selectedImageSize}`,
-              type: "image",
-              attachments: [imageUrl],
-              personality
-            };
-            const finalMessages = [...updatedMessages, assistantMsg];
-            setMessages(finalMessages);
-            updateActiveSession(finalMessages);
-            foundImage = true;
-            break;
-          }
-        }
-      }
-      
-      if (!foundImage) {
-        throw new Error("Neural link failed to transmit visual data.");
-      }
+      const assistantMsg: Message = { 
+        role: "assistant", 
+        content: `Visual synthesis complete for protocol: ${prompt}. Aspect Ratio: ${selectedAspectRatio} | Output: ${selectedImageSize}`,
+        type: "image",
+        attachments: [result.imageUrl],
+        personality
+      };
+      const finalMessages = [...updatedMessages, assistantMsg];
+      setMessages(finalMessages);
+      updateActiveSession(finalMessages);
     } catch (error: any) {
       console.error("Image Gen Error:", error);
       const errorMsg: Message = { 
@@ -385,15 +356,9 @@ export const AIEngine = () => {
     NEXUS_NPU.processRange(0, 100, (val) => val + Math.random());
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: updatedMessages.map(m => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.content }]
-        })),
-        config: {
-          systemInstruction: `${PERSONALITIES[personality].instruction} You are part of the NEXUS ONE ecosystem. Professional, efficient, and forward-thinking. Always keep a futuristic tone.`
-        }
+      const response = await generateAiText({
+        messages: updatedMessages,
+        systemInstruction: `${PERSONALITIES[personality].instruction} You are part of the NEXUS ONE ecosystem. Professional, efficient, and forward-thinking. Always keep a futuristic tone.`
       });
 
       const assistantMessage = response.text || "I encountered a neural synchronization error. Please retry.";
@@ -428,15 +393,9 @@ Please synthesize a comprehensive, high-authority blog post with a futuristic NE
     setBlogKeywords("");
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{
-          role: "user",
-          parts: [{ text: userPrompt }]
-        }],
-        config: {
-          systemInstruction: `You are the NEXUS ONE Content Architect. You excel at creating visionary, high-quality blog content that feels ahead of its time. Your writing is authoritative, structured, and uses advanced technical vocabulary consistent with the NEXUS ONE universe.`
-        }
+      const response = await generateAiText({
+        prompt: userPrompt,
+        systemInstruction: `You are the NEXUS ONE Content Architect. You excel at creating visionary, high-quality blog content that feels ahead of its time. Your writing is authoritative, structured, and uses advanced technical vocabulary consistent with the NEXUS ONE universe.`
       });
 
       const assistantMessage = response.text || "Blog synthesis failed due to neural divergence.";

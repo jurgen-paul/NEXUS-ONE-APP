@@ -148,7 +148,7 @@ export const ContentHub: React.FC = () => {
     { id: "code", label: "Code Architect", icon: Code2, badge: "NEW" },
     { id: "books", label: "Books & E-Books", icon: BookOpen },
     { id: "emails", label: "Email Sequences", icon: Mail },
-    { id: "blog", label: "Journal Logs", icon: FileText },
+    { id: "blog", label: "BlogPost Studio", icon: FileText, badge: "AI" },
     { id: "news", label: "Neural Feed", icon: Newspaper }
   ];
 

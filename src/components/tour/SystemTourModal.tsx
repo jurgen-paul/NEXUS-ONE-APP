@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Award,
   BookOpen,
+  FileText,
   Share2,
   Users,
   Film,
@@ -61,7 +62,7 @@ const TOUR_STEPS: TourStep[] = [
       "Real-time Cloud Node Synchronization",
       "Global Telemetry & Sub-millimeter Odometry"
     ],
-    shortcut: "Alt + D for Quick Dashboard",
+    shortcut: "Cmd+K / Ctrl+K for Global Neural Search",
     visualPreview: {
       theme: "Cyber Obsidian",
       accentColor: "#00f2ff",
@@ -69,6 +70,31 @@ const TOUR_STEPS: TourStep[] = [
         { label: "SECURITY", value: "AES-256" },
         { label: "NODES", value: "64 ACTIVE" },
         { label: "UPTIME", value: "99.999%" }
+      ]
+    }
+  },
+  {
+    id: "step-blogposts",
+    title: "Content BlogPost Studio",
+    subtitle: "AI Ghostwriting, SEO Scoring & Multi-Dispatch",
+    targetModule: Module.BLOGPOSTS,
+    icon: FileText,
+    badge: "MODULE: BLOGPOSTS",
+    description: "Author technical thought leadership, showbiz breakdowns, and dev guides. Includes instant AI outline ghostwriter, live Markdown split-preview, OpenSSF security articles, and 1-click syndication to Substack, Medium, and Dev.to.",
+    keyFeatures: [
+      "AI Outline Ghostwriter with Key Takeaway Synthesis",
+      "Live Markdown Editor with Instant Social Previews",
+      "1-Click Syndication to Medium, Substack, and Dev.to",
+      "Interactive Reader Mode with Reactions & Deep Linking"
+    ],
+    shortcut: "Cmd+K / Ctrl+K -> #blog",
+    visualPreview: {
+      theme: "Publishing Hub",
+      accentColor: "#06b6d4",
+      metrics: [
+        { label: "SEO SCORE", value: "98/100" },
+        { label: "CHANNELS", value: "5 SYNDICATED" },
+        { label: "READER", value: "VOLUMETRIC" }
       ]
     }
   },

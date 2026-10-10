@@ -56,6 +56,8 @@ import { GoogleSheetsHub } from "./components/GoogleSheetsHub";
 import { MailHub } from "./components/MailHub";
 import { VoiceCommandOverlay } from "./components/VoiceCommandOverlay";
 import { SystemTourModal } from "./components/tour/SystemTourModal";
+import { HeaderSearchPalette } from "./components/HeaderSearchPalette";
+import { BlogpostStudioTab } from "./components/collab/BlogpostStudioTab";
 import { Compass } from "lucide-react";
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
@@ -132,6 +134,7 @@ export default function App() {
     { id: Module.CLOUD_CONFIG, label: "Cloud Parameters", icon: Shield },
     { id: Module.COLLABORATION, label: "Collaboration", icon: Users },
     { id: Module.CONTENT_HUB, label: "Content Matrix", icon: Newspaper },
+    { id: Module.BLOGPOSTS, label: "Content Blogposts", icon: FileText },
     { id: Module.AI_GENERATOR, label: "Neural Architect", icon: Wand2 },
     { id: Module.DEPENDENCY_MAP, label: "Topology Map", icon: Network },
     { id: Module.SHEETS, label: "Google Sheets", icon: FileSpreadsheet },
@@ -198,14 +201,10 @@ export default function App() {
       <main className="flex-1 flex flex-col relative overflow-hidden">
         {/* Top Bar */}
         <header className="h-16 border-b border-nexus-border flex items-center justify-between px-8 glass z-40">
-          <div className="flex items-center gap-4 flex-1 max-w-xl">
-            <Search className="w-4 h-4 text-nexus-text-dim" />
-            <input 
-              type="text" 
-              placeholder="Search neural network..." 
-              className="bg-transparent border-none outline-none text-sm w-full placeholder:text-nexus-text-dim"
-            />
-          </div>
+          <HeaderSearchPalette 
+            onNavigate={(mod) => setActiveModule(mod)} 
+            onOpenTour={() => setIsTourOpen(true)} 
+          />
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 text-xs font-mono text-nexus-text-dim">
               <ShieldCheck className="w-4 h-4 text-green-400" />
@@ -261,12 +260,17 @@ export default function App() {
               {activeModule === Module.CLOUD_CONFIG && <CloudConfig />}
               {activeModule === Module.COLLABORATION && <CollaborationHub />}
               {activeModule === Module.CONTENT_HUB && <ContentHub />}
+              {activeModule === Module.BLOGPOSTS && (
+                <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+                  <BlogpostStudioTab />
+                </div>
+              )}
               {activeModule === Module.AI_GENERATOR && <SuperAIGenerator />}
               {activeModule === Module.DEPENDENCY_MAP && <DependencyMap />}
               {activeModule === Module.SHEETS && <GoogleSheetsHub />}
               {activeModule === Module.SETTINGS && <AppSettings />}
               
-              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.COMMUNICATION, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB, Module.AI_GENERATOR, Module.DEPENDENCY_MAP, Module.SHEETS].includes(activeModule) && (
+              {![Module.DASHBOARD, Module.AI_ENGINE, Module.MARKETING, Module.NAVIGATION, Module.CREATOR, Module.SOCIAL, Module.DOCS, Module.DEPLOYMENT, Module.SETTINGS, Module.SALES, Module.AR_VIEW, Module.ASSISTANT, Module.COMMUNICATION, Module.SMART_INBOX, Module.CLOUD_CONFIG, Module.COLLABORATION, Module.CONTENT_HUB, Module.BLOGPOSTS, Module.AI_GENERATOR, Module.DEPENDENCY_MAP, Module.SHEETS].includes(activeModule) && (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Cpu className="w-16 h-16 text-nexus-accent/20 mb-6 animate-pulse" />
                   <h2 className="text-2xl font-display font-bold mb-2">Module Initialization</h2>

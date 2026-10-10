@@ -7,10 +7,22 @@ import dotenv from "dotenv";
 import crypto from "crypto";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { GoogleGenAI } from "@google/genai";
 
 const execAsync = promisify(exec);
 
 dotenv.config();
+
+// Server-side Gemini AI client initialization
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      "User-Agent": "aistudio-build",
+      ...(process.env.APP_URL ? { "Referer": process.env.APP_URL } : {})
+    }
+  }
+});
 
 async function startServer() {
   const app = express();
@@ -136,6 +148,151 @@ async function startServer() {
         }, {} as Record<string, string>)
       }
     });
+  });
+
+  // --- Server-Side Gemini API Routes ---
+  app.post("/api/ai/generate", async (req, res) => {
+    try {
+      const {
+        prompt,
+        messages,
+        systemInstruction,
+        responseMimeType,
+        responseSchema,
+        model = "gemini-3.8-flash"
+      } = req.body;
+
+      let contents: any;
+      if (messages && Array.isArray(messages)) {
+        contents = messages.map((m: any) => ({
+          role: m.role === "assistant" || m.role === "model" ? "model" : "user",
+          parts: [{ text: m.content || "" }]
+        }));
+      } else if (prompt) {
+        contents = [{ role: "user", parts: [{ text: prompt }] }];
+      } else {
+        return res.status(400).json({ error: "Missing prompt or messages" });
+      }
+
+      const config: any = {};
+      if (systemInstruction) config.systemInstruction = systemInstruction;
+      if (responseMimeType) config.responseMimeType = responseMimeType;
+      if (responseSchema) config.responseSchema = responseSchema;
+
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: Object.keys(config).length > 0 ? config : undefined
+      });
+
+      const text = response.text || "";
+      let parsedData = null;
+      if (responseMimeType === "application/json") {
+        try {
+          parsedData = JSON.parse(text);
+        } catch {
+          parsedData = null;
+        }
+      }
+
+      res.json({ text, data: parsedData });
+    } catch (error: any) {
+      console.error("[Gemini Server Error]:", error?.message || error);
+      const isLeaked = error?.message?.includes("leaked") || error?.message?.includes("PERMISSION_DENIED");
+      res.status(500).json({
+        error: isLeaked
+          ? "Gemini API key restriction: The configured API key was flagged for renewal or has access restrictions. Please select a fresh API key in AI Studio."
+          : (error?.message || "Failed to generate AI content"),
+        isLeaked
+      });
+    }
+  });
+
+  app.post("/api/ai/image", async (req, res) => {
+    try {
+      const { prompt, aspectRatio = "1:1", imageSize = "1K" } = req.body;
+      if (!prompt) {
+        return res.status(400).json({ error: "Missing prompt" });
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite-image",
+        contents: {
+          parts: [{ text: prompt }]
+        },
+        config: {
+          imageConfig: {
+            aspectRatio,
+            imageSize
+          }
+        }
+      });
+
+      let imageUrl: string | null = null;
+      if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            imageUrl = `data:${part.inlineData.mimeType || "image/png"};base64,${part.inlineData.data}`;
+            break;
+          }
+        }
+      }
+
+      if (!imageUrl) {
+        throw new Error("No visual data returned from model");
+      }
+
+      res.json({ imageUrl, prompt });
+    } catch (error: any) {
+      console.error("[Gemini Image Server Error]:", error?.message || error);
+      res.status(500).json({
+        error: error?.message || "Image synthesis failed",
+        isLeaked: error?.message?.includes("leaked") || error?.message?.includes("PERMISSION_DENIED")
+      });
+    }
+  });
+
+  app.post("/api/ai/tts", async (req, res) => {
+    try {
+      const { text, voiceName = "Zephyr" } = req.body;
+      if (!text) {
+        return res.status(400).json({ error: "Missing text" });
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash-lite-tts",
+        contents: [
+          {
+            role: "user",
+            parts: [{ text }]
+          }
+        ],
+        config: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName }
+            }
+          }
+        }
+      });
+
+      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (base64Audio) {
+        res.json({
+          audioUrl: `data:audio/wav;base64,${base64Audio}`,
+          base64Audio
+        });
+      } else {
+        res.status(500).json({ error: "No audio generated" });
+      }
+    } catch (error: any) {
+      console.error("[Gemini TTS Server Error]:", error?.message || error);
+      res.status(500).json({
+        error: error?.message || "Speech synthesis failed",
+        useWebSpeechFallback: true
+      });
+    }
   });
 
   // Get Auth URL for a provider

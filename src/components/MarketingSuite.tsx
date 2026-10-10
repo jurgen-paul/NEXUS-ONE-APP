@@ -20,7 +20,7 @@ import {
   Bookmark
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { GoogleGenAI, Type } from "@google/genai";
+import { generateAiText } from "@/src/lib/geminiClient";
 import { 
   AreaChart, 
   Area, 
@@ -136,53 +136,19 @@ export const MarketingSuite = () => {
     setCampaign(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: `Generate a hyper-specialized marketing campaign strategy for: "${prompt}". 
+      const promptText = `Generate a hyper-specialized marketing campaign strategy for: "${prompt}". 
         Include:
         1. A campaign name (creative and unique).
         2. A primary objective focused on ROI and scale.
         3. 3 social media posts (specify platform and generate high-conversion content).
-        4. Detailed budget allocation across 4 specific digital platforms (platform, percentage, and a sample amount assuming $10,000 total).` }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              objective: { type: Type.STRING },
-              posts: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    platform: { type: Type.STRING },
-                    content: { type: Type.STRING }
-                  },
-                  required: ["platform", "content"]
-                }
-              },
-              budget: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    platform: { type: Type.STRING },
-                    percentage: { type: Type.NUMBER },
-                    amount: { type: Type.STRING }
-                  },
-                  required: ["platform", "percentage", "amount"]
-                }
-              }
-            },
-            required: ["name", "objective", "posts", "budget"]
-          }
-        }
+        4. Detailed budget allocation across 4 specific digital platforms (platform, percentage, and a sample amount assuming $10,000 total).`;
+
+      const response = await generateAiText({
+        prompt: promptText,
+        responseMimeType: "application/json"
       });
 
-      const resultText = response.text || "{}";
-      const data = JSON.parse(resultText);
+      const data = response.data || JSON.parse(response.text || "{}");
       setCampaign(data);
       // Automatically trigger an audit for the new campaign
       runStrategicAudit(data);
@@ -196,33 +162,17 @@ export const MarketingSuite = () => {
   const runStrategicAudit = async (campaignData: Campaign) => {
     setIsAuditGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ 
-          role: "user", 
-          parts: [{ text: `Perform a deep neural audit on this marketing campaign: ${JSON.stringify(campaignData)}. 
+      const auditPrompt = `Perform a deep neural audit on this marketing campaign: ${JSON.stringify(campaignData)}. 
           Provide 3 distinct optimization recommendations based on market trends for 2026.
-          Return a JSON array of objects with keys: title, desc, action.` }] 
-        }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                desc: { type: Type.STRING },
-                action: { type: Type.STRING }
-              },
-              required: ["title", "desc", "action"]
-            }
-          }
-        }
+          Return a JSON array of objects with keys: title, desc, action.`;
+
+      const response = await generateAiText({
+        prompt: auditPrompt,
+        responseMimeType: "application/json"
       });
-      const auditText = response.text || "[]";
-      setAuditResults(JSON.parse(auditText));
+
+      const auditData = response.data || JSON.parse(response.text || "[]");
+      setAuditResults(Array.isArray(auditData) ? auditData : []);
     } catch (error) {
       console.error("Audit Generation Error:", error);
     } finally {

@@ -107,6 +107,71 @@ const INITIAL_BLOGS: BlogPostItem[] = [
     seoScore: 98,
     status: "PUBLISHED",
     platforms: ["Nexus Portal", "LinkedIn", "Medium"]
+  },
+  {
+    id: "blog-4",
+    title: "OpenSSF Level 3 & SLSA Security Assurance in Neural Command Systems",
+    slug: "openssf-level-3-slsa-security-assurance",
+    excerpt: "How cryptographic provenance, Software Bill of Materials (SBOM), and strict R8 obfuscation safeguard enterprise AI command centers.",
+    content: `# OpenSSF Level 3 & SLSA Security Assurance in Neural Command Systems
+
+In modern enterprise AI systems, cyber supply chain integrity is as crucial as neural model weights. Oistarian-NEXUS-ONE enforces automated verification pipelines meeting OpenSSF Best Practices and SLSA Level 3 compliance standards.
+
+## 1. Automated Software Bill of Materials (SBOM)
+
+Every build artifact generates a signed CycloneDX and SPDX SBOM tracking all transitive npm and native binaries. Any untrusted source is flagged before deployment into cloud runtimes.
+
+## 2. Hardened ProGuard & R8 Obfuscation Rules
+
+Reverse engineering protection is enforced at compile time. By stripping debug symbols into dedicated Google Play Console deobfuscation bundles, internal neural weight schemas and proprietary IPC bindings remain tamper-proof.
+
+## 3. Coordinated Vulnerability Disclosure (CVD)
+
+A transparent SLA guarantees initial triage within 24 hours, patch commits within 72 hours, and cryptographic disclosure advisories for ecosystem partners.`,
+    author: "Chief Security Officer",
+    authorAvatar: "CSO",
+    authorRole: "AppSec Lead",
+    publishedAt: "2026-08-14",
+    category: "DEVELOPMENT",
+    readTime: "7 min read",
+    views: 1980,
+    likes: 530,
+    coverImage: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80",
+    seoScore: 99,
+    status: "PUBLISHED",
+    platforms: ["Nexus Portal", "Dev.to"]
+  },
+  {
+    id: "blog-5",
+    title: "Autonomous Multi-Agent Swarms: The Next Frontier in Creative Studio Automation",
+    slug: "autonomous-multi-agent-swarms-creative-studio",
+    excerpt: "Coordinating decentralized AI agents for automated scriptwriting, 8K render pipelines, and cross-platform distribution in real time.",
+    content: `# Autonomous Multi-Agent Swarms: The Next Frontier
+
+Traditional creative workflows require constant manual handoffs between copywriters, 3D generalists, video editors, and social media managers. Autonomous agent swarms compress this cycle from 2 weeks down to 90 seconds.
+
+## Real-Time Agent Handoff Protocols
+
+Using event-driven neural pipelines, an initial creative prompt automatically triggers:
+1. **The Ghostwriter Agent**: Generates verified long-form narrative outlines.
+2. **The Visual Synthesizer**: Produces 8K concept boards with coherent lighting seeds.
+3. **The Escrow Auditor**: Checks smart contract bounties and schedules automated disbursements.
+
+## Looking Forward
+
+The creative studio of tomorrow is not an office of manual labor; it is a conductor orchestrating swarms of specialized cognitive agents.`,
+    author: "Aura Cognitive Engine",
+    authorAvatar: "ACE",
+    authorRole: "Autonomous Intelligence",
+    publishedAt: "2026-08-14",
+    category: "NEURAL_TECH",
+    readTime: "5 min read",
+    views: 3120,
+    likes: 910,
+    coverImage: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&q=80",
+    seoScore: 97,
+    status: "PUBLISHED",
+    platforms: ["Nexus Portal", "Medium", "Substack"]
   }
 ];
 
@@ -115,6 +180,9 @@ export const BlogpostStudioTab: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBlog, setSelectedBlog] = useState<BlogPostItem | null>(null);
+  const [readingBlog, setReadingBlog] = useState<BlogPostItem | null>(null);
+  const [likedPosts, setLikedPosts] = useState<Record<string, boolean>>({});
+  const [copiedLink, setCopiedLink] = useState(false);
   
   // Editor View State
   const [isEditing, setIsEditing] = useState(false);
@@ -130,6 +198,40 @@ export const BlogpostStudioTab: React.FC = () => {
   const [aiPromptTopic, setAiPromptTopic] = useState("");
   const [showAiModal, setShowAiModal] = useState(false);
   const [publishedSuccess, setPublishedSuccess] = useState(false);
+
+  // Global listener for deep-linking into a blog post
+  React.useEffect(() => {
+    const handleOpenBlog = (e: any) => {
+      const blogId = e.detail;
+      const found = blogs.find(b => b.id === blogId || b.slug === blogId || b.title.toLowerCase().includes(String(blogId).toLowerCase()));
+      if (found) {
+        setReadingBlog(found);
+        setIsEditing(false);
+      }
+    };
+    window.addEventListener("nexus-open-blog", handleOpenBlog);
+    return () => window.removeEventListener("nexus-open-blog", handleOpenBlog);
+  }, [blogs]);
+
+  const toggleLike = (id: string) => {
+    spatialAudio.playClick();
+    setLikedPosts(prev => {
+      const isLiked = !!prev[id];
+      const next = { ...prev, [id]: !isLiked };
+      setBlogs(curr => curr.map(b => b.id === id ? { ...b, likes: b.likes + (isLiked ? -1 : 1) } : b));
+      if (readingBlog && readingBlog.id === id) {
+        setReadingBlog(curr => curr ? { ...curr, likes: curr.likes + (isLiked ? -1 : 1) } : null);
+      }
+      return next;
+    });
+  };
+
+  const copyArticleLink = (blog: BlogPostItem) => {
+    spatialAudio.playTargetLock();
+    navigator.clipboard?.writeText?.(window.location.origin + "/#blog=" + blog.slug);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   const filteredBlogs = blogs.filter(b => {
     const matchesCat = activeCategory === "ALL" || b.category === activeCategory;
@@ -464,7 +566,11 @@ export const BlogpostStudioTab: React.FC = () => {
             {filteredBlogs.map(blog => (
               <div
                 key={blog.id}
-                className="bg-[#0b1224] border border-white/10 rounded-2xl overflow-hidden hover:border-cyan-500/40 transition-all hover:shadow-[0_0_25px_rgba(6,182,212,0.15)] group flex flex-col justify-between"
+                onClick={() => {
+                  spatialAudio.playHoloPinch();
+                  setReadingBlog(blog);
+                }}
+                className="bg-[#0b1224] border border-white/10 rounded-2xl overflow-hidden hover:border-cyan-500/40 transition-all hover:shadow-[0_0_25px_rgba(6,182,212,0.15)] group flex flex-col justify-between cursor-pointer"
               >
                 <div>
                   <div className="relative h-44 overflow-hidden">
@@ -510,13 +616,20 @@ export const BlogpostStudioTab: React.FC = () => {
                     <span>{blog.readTime}</span>
                   </div>
 
-                  <button
-                    onClick={() => handleOpenEditor(blog)}
-                    className="p-2 hover:bg-white/10 rounded-lg text-nexus-text-dim hover:text-white transition-all flex items-center gap-1 text-xs font-mono"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Edit</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenEditor(blog);
+                      }}
+                      className="p-1.5 hover:bg-white/10 rounded-lg text-nexus-text-dim hover:text-white transition-all flex items-center gap-1 text-xs font-mono"
+                      title="Edit Post"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+                    <span className="text-cyan-400 text-xs font-bold hover:underline">Read →</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -573,6 +686,148 @@ export const BlogpostStudioTab: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Reader Modal */}
+      <AnimatePresence>
+        {readingBlog && (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.25 }}
+              className="bg-[#0b1224] border border-cyan-500/30 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(6,182,212,0.2)] overflow-hidden"
+            >
+              {/* Reader Header Bar */}
+              <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-black/40">
+                <div className="flex items-center gap-3">
+                  <span className="px-2.5 py-1 text-[10px] font-mono uppercase bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 rounded-full font-bold">
+                    {readingBlog.category}
+                  </span>
+                  <span className="text-xs font-mono text-nexus-text-dim flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> {readingBlog.readTime}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleLike(readingBlog.id)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all",
+                      likedPosts[readingBlog.id]
+                        ? "bg-rose-500/20 border-rose-500/50 text-rose-300"
+                        : "bg-white/5 border-white/10 text-nexus-text-dim hover:text-white"
+                    )}
+                  >
+                    <Flame className={cn("w-3.5 h-3.5", likedPosts[readingBlog.id] && "text-rose-400 fill-rose-400")} />
+                    <span>{readingBlog.likes}</span>
+                  </button>
+
+                  <button
+                    onClick={() => copyArticleLink(readingBlog)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-nexus-text-dim hover:text-white transition-all"
+                    title="Share link"
+                  >
+                    {copiedLink ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Share2 className="w-3.5 h-3.5 text-cyan-400" />}
+                    <span>{copiedLink ? "Copied" : "Share"}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const postToEdit = readingBlog;
+                      setReadingBlog(null);
+                      handleOpenEditor(postToEdit);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-nexus-accent/15 hover:bg-nexus-accent/25 border border-nexus-accent/30 text-xs font-mono text-nexus-accent transition-all font-bold"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Edit Post</span>
+                  </button>
+
+                  <button
+                    onClick={() => setReadingBlog(null)}
+                    className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-nexus-text-dim hover:text-white transition-all"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Reader Body Content */}
+              <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-6 custom-scrollbar">
+                {/* Hero Banner */}
+                <div className="relative rounded-2xl overflow-hidden h-64 border border-white/10 shadow-lg">
+                  <img src={readingBlog.coverImage} alt="" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0b1224] via-black/40 to-transparent" />
+                  <div className="absolute bottom-5 left-5 right-5">
+                    <h1 className="text-xl sm:text-3xl font-display font-bold text-white tracking-tight leading-snug">
+                      {readingBlog.title}
+                    </h1>
+                    <div className="flex items-center gap-3 mt-3 text-xs font-mono text-nexus-text-dim">
+                      <span className="flex items-center gap-1.5 text-cyan-300">
+                        <span className="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-400 flex items-center justify-center font-bold text-[10px]">
+                          {readingBlog.authorAvatar}
+                        </span>
+                        <span>{readingBlog.author} ({readingBlog.authorRole})</span>
+                      </span>
+                      <span>•</span>
+                      <span>Published {readingBlog.publishedAt}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Excerpt Lead */}
+                <div className="p-4 rounded-xl bg-white/[0.03] border-l-4 border-cyan-400 text-sm text-cyan-200 font-sans leading-relaxed italic">
+                  "{readingBlog.excerpt}"
+                </div>
+
+                {/* Markdown Prose */}
+                <div className="prose prose-invert max-w-none text-nexus-text leading-relaxed font-sans space-y-4">
+                  {readingBlog.content.split("\n\n").map((block, idx) => {
+                    if (block.startsWith("# ")) {
+                      return <h2 key={idx} className="text-xl sm:text-2xl font-bold font-display text-white pt-4 pb-1 border-b border-white/10">{block.replace("# ", "")}</h2>;
+                    }
+                    if (block.startsWith("## ")) {
+                      return <h3 key={idx} className="text-lg font-bold font-display text-cyan-300 pt-3">{block.replace("## ", "")}</h3>;
+                    }
+                    if (block.startsWith("- ")) {
+                      const items = block.split("\n").filter(Boolean);
+                      return (
+                        <ul key={idx} className="list-disc list-inside space-y-1 text-nexus-text-dim text-sm pl-2">
+                          {items.map((it, i) => <li key={i}>{it.replace(/^- /, "")}</li>)}
+                        </ul>
+                      );
+                    }
+                    if (/^\d+\./.test(block)) {
+                      const items = block.split("\n").filter(Boolean);
+                      return (
+                        <ol key={idx} className="list-decimal list-inside space-y-1 text-nexus-text-dim text-sm pl-2">
+                          {items.map((it, i) => <li key={i}>{it.replace(/^\d+\.\s*/, "")}</li>)}
+                        </ol>
+                      );
+                    }
+                    return <p key={idx} className="text-sm text-nexus-text-dim/90 leading-relaxed">{block}</p>;
+                  })}
+                </div>
+
+                {/* Syndication & Tags */}
+                <div className="pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase text-nexus-text-dim">Syndicated On:</span>
+                    {readingBlog.platforms.map((p, idx) => (
+                      <span key={idx} className="px-2.5 py-1 text-[10px] font-mono bg-white/5 border border-white/10 rounded-lg text-cyan-300">
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs font-mono text-nexus-text-dim">
+                    <span>Views: {readingBlog.views}</span>
+                    <span>SEO Rating: {readingBlog.seoScore}/100</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

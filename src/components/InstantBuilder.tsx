@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { BookOpen, Globe, Wand2, Layout, Type, Image as ImageIcon, Loader2, CheckCircle2, ArrowRight, Cpu, ExternalLink, Monitor, Smartphone, Tablet, Trash2, Plus, GripVertical, Palette, Layers, Save, RefreshCcw, Zap } from "lucide-react";
-import { GoogleGenAI, Type as GenAIType } from "@google/genai";
 import { cn } from "@/src/lib/utils";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { generateAiText } from "@/src/lib/geminiClient";
 
 type CreatorType = "BOOK" | "WEBSITE" | "LANDING_PAGE";
 type PreviewMode = "desktop" | "tablet" | "mobile";
@@ -39,49 +37,22 @@ export const InstantBuilder = () => {
     setResult(null);
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate a detailed structure for a ${type} based on this prompt: "${prompt}". 
+      const promptText = `Generate a detailed structure for a ${type} based on this prompt: "${prompt}". 
         The style should be ${stylePreset}.
-        Include a catchy title, 4 main sections with content summaries, and branding suggestions (primary color hex and font style).`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: GenAIType.OBJECT,
-            properties: {
-              title: { type: GenAIType.STRING },
-              sections: {
-                type: GenAIType.ARRAY,
-                items: {
-                  type: GenAIType.OBJECT,
-                  properties: {
-                    heading: { type: GenAIType.STRING },
-                    content: { type: GenAIType.STRING }
-                  },
-                  required: ["heading", "content"]
-                }
-              },
-              branding: {
-                type: GenAIType.OBJECT,
-                properties: {
-                  primaryColor: { type: GenAIType.STRING },
-                  font: { type: GenAIType.STRING }
-                },
-                required: ["primaryColor", "font"]
-              }
-            },
-            required: ["title", "sections", "branding"]
-          }
-        }
+        Include a catchy title, 4 main sections with content summaries, and branding suggestions (primary color hex and font style).`;
+
+      const response = await generateAiText({
+        prompt: promptText,
+        responseMimeType: "application/json"
       });
 
-      const data = JSON.parse(response.text);
+      const data = response.data || JSON.parse(response.text);
       // Inject IDs for internal management
       const content = {
         ...data,
-        sections: data.sections.map((s: any, idx: number) => ({
+        sections: (data.sections || []).map((s: any) => ({
           ...s,
-          id: Math.random().toString(36).substr(2, 9)
+          id: s.id || Math.random().toString(36).substr(2, 9)
         }))
       };
       setResult(content);

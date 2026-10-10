@@ -28,8 +28,8 @@ import {
   BookOpen
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { GoogleGenAI } from "@google/genai";
 import ReactMarkdown from "react-markdown";
+import { generateAiText } from "@/src/lib/geminiClient";
 
 const CONTENT_TYPES = [
   { id: "blog", label: "Blog Article", icon: FileText },
@@ -99,8 +99,6 @@ export const SuperAIGenerator = () => {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
   const toggleAugmentation = (id: string) => {
     setActiveAugmentations(prev => 
       prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
@@ -131,17 +129,14 @@ Active Augmentations: ${selectedAugments}
 Please generate the content now. Ensure it matches the NEXUS ONE futuristic and high-authority aesthetic.`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: `You are the NEXUS ONE Content Architect, an elite AI specialized in high-performance content generation. 
+      const response = await generateAiText({
+        prompt,
+        systemInstruction: `You are the NEXUS ONE Content Architect, an elite AI specialized in high-performance content generation. 
           Your output must be polished, impactful, and perfectly aligned with the user's specific configuration. 
           Use Markdown for formatting. Avoid generic boilerplate. 
           If SEO is active, integrate keywords naturally. 
           If CTA is active, end with a powerful call to action.
           The user environment is a cyberpunk-themed dashboard called NEXUS ONE.`
-        }
       });
 
       setOutput(response.text || "Generation failure: Neural signal lost.");

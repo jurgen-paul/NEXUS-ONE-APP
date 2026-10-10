@@ -257,6 +257,9 @@ export const VoiceCommandOverlay: React.FC<{
     } else if (cleaned.includes("tour") || cleaned.includes("onboard") || cleaned.includes("guide")) {
       window.dispatchEvent(new CustomEvent("nexus-open-system-tour"));
       action = "Launched NEXUS ONE System Tour Onboarding";
+    } else if (cleaned.includes("blog") || cleaned.includes("article") || cleaned.includes("post") || cleaned.includes("journal")) {
+      targetMod = Module.BLOGPOSTS;
+      action = "Navigated to Content BlogPost Studio";
     } else if (cleaned.includes("content") || cleaned.includes("matrix") || cleaned.includes("video") || cleaned.includes("image") || cleaned.includes("code") || cleaned.includes("book") || cleaned.includes("email") || cleaned.includes("generator")) {
       targetMod = Module.CONTENT_HUB;
       action = "Navigated to Content Matrix Studio (Video, Image, Code, Books, Emails)";
