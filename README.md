@@ -1,6 +1,13 @@
 # Oistarian-NEXUS-ONE: Enterprise Command Ecosystem
 > A hyper-advanced, AI-powered command center and autonomous operational ecosystem fusing real-time multi-model intelligence, microphone-driven voice navigation, cloud service orchestration, and automated business workflows.
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10423/badge)](https://www.bestpractices.dev/projects/10423)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/oistars/oistarian-nexus-one/badge)](https://securityscorecards.dev/viewer/?uri=github.com/oistars/oistarian-nexus-one)
+[![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](./docs/OPENSSF_SECURITY.md)
+[![ProGuard / R8 Protected](https://img.shields.io/badge/Bytecode-ProGuard%20%2F%20R8%20Hardened-blue?logo=android)](./docs/PROGUARD_DOCUMENTATION.md)
+[![Play Store Symbols](https://img.shields.io/badge/Play%20Store-Symbols%20%26%20Deobfuscation-success?logo=googleplay)](./docs/PLAYSTORE_SYMBOLS.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 ---
 
 ## System Overview
@@ -23,55 +30,141 @@
 
 ---
 
-## User Manual & Interface Walkthrough
+## Content & Media Matrix: 5-Pillar Visual Showcase
 
-### 1. Command Center & Telemetry Dashboard
+Explore the 5 core content creation, collaboration, spatial computing, and intelligence terminals powered by the NEXUS-ONE engine:
+
+### 1. Multimedia Content Matrix & Studio Pipeline
+Unified multimedia editing station combining video track compositing, procedural GLSL shaders, multi-track audio spectrum visualization, and automated multi-channel publishing pipelines (Web, Social, RSS, CMS).
+
+![Multimedia Content Matrix & Studio Pipeline](./src/assets/images/content_matrix_hub_1791630419783.jpg)
+
+- **Timeline Compositing**: Real-time layer blending, transition keyframing, and video asset transcoding.
+- **Audio Spectrum Engine**: Web Audio FFT visualizer with decibel amplitude readouts, VU peak meters, and spatial acoustic leveling.
+- **Multi-Format Export**: Automated compilation into web bundles, video snippets, and markdown article feeds.
+
+---
+
+### 2. 3D Spatial Augmented Reality & LiDAR Canvas
+Interactive holographic workspace rendering 1,400+ point-cloud particles, 6DoF parallax odometry, real-time node entropy analysis, and digital-twin building mesh overlays.
+
+![3D Spatial Augmented Reality & LiDAR Canvas](./src/assets/images/spatial_ar_canvas_1791630430462.jpg)
+
+- **Optical LiDAR Scanner**: WebCam feed augmented with interactive depth particles and bounding telemetry sensors.
+- **Quantum HoloCore**: 3D geometric gyro with rotating kinetic rings and real-time quaternion attitude telemetry.
+- **Spatial Audio Synthesizer**: Binaural HRTF soundscapes linked to 3D spatial rotation coordinates.
+
+---
+
+### 3. Encrypted Comms Matrix & Collaboration Terminal
+Mission-grade multi-channel collaboration suite with spatial voice channels, AI ghostwriting synthesis, encrypted telemetry chat cards, and real-time peer presence indicators.
+
+![Encrypted Comms Matrix & Collaboration Terminal](./src/assets/images/comms_matrix_collab_1791630440525.jpg)
+
+- **Multi-Channel Rooms**: Instant switching across `#general-hq`, `#showbiz-buzz`, `#influencer-deals`, `#marketplace-bounties`, and `#dev-ops`.
+- **Aura AI Ghostwriter**: 1-click intelligent responses, draft synthesis, and live conversation summaries.
+- **Spatial Audio Voice Memos**: Interactive HRTF audio player with visual equalizer playback.
+
+---
+
+### 4. Creator Marketplace & Smart Contract Escrow Bounties
+Decentralized creator economy hub featuring smart escrow bounty backing, 3D asset trade previews, influencer sponsorship bids, and milestone-gated payout settlements.
+
+![Creator Marketplace & Smart Contract Escrow Bounties](./src/assets/images/creator_marketplace_escrow_1791630451660.jpg)
+
+- **Smart Contract Escrow**: Secure milestone escrow simulation for freelance creator gigs and brand sponsorships.
+- **Interactive Proposal Submissions**: Real-time bidding, quote submissions, and project delivery tracking.
+- **Asset Telemetry**: Dynamic filtering across 3D Shaders, Character Skins, Audio Tracks, and Video Promos.
+
+---
+
+### 5. Daily News & Showbiz Intelligence Radar
+Satellite intelligence and showbiz command deck delivering real-time streaming tickers, VIP celebrity analytics, media broadcast radars, and 30-second AI executive briefings.
+
+![Daily News & Showbiz Intelligence Radar](./src/assets/images/daily_news_showbiz_radar_1791630461860.jpg)
+
+- **Live Breaking Ticker**: Continuous animated satellite ticker monitoring global entertainment and tech milestones.
+- **Showbiz & VIP Feed**: High-priority alert categorizations across Hollywood box office, awards, fashion, and digital media.
+- **AI Bullet Briefings**: Automated 30-second executive summaries and 1-click social media broadcast sharing.
+
+---
+
+## User Manual & Core Interface Walkthrough
+
+### Command Center & Telemetry Dashboard
 The **Command Center** provides an immediate high-altitude operational summary of all active sub-systems, including live cluster health, throughput radars, priority alerts, and real-time execution pulses.
 
 ![Command Center & Telemetry Dashboard](./src/assets/images/nexus_dashboard_manual_1786736126555.jpg)
 
-#### Key Operational Capabilities:
 - **Throughput & Latency Gauges**: Instant visual telemetry across all backend relays and microservice nodes.
 - **Unified Health Radars**: Continuous scanning of network integrity, active API tokens, and compute loads.
 - **Quick-Switch Launchpad**: Rapid access bar for jumping straight to high-priority business operations.
 
 ---
 
-### 2. Avatar Sync & Voice Activation Listener
-The **Avatar Sync & Voice Listener** enables hands-free vocal navigation and real-time neural persona modulation. It leverages the Web Speech Recognition API alongside customizable vocal synthesis feedback.
+### Avatar Sync & Voice Activation Listener
+The **Avatar Sync & Voice Listener** enables hands-free vocal navigation and real-time neural persona modulation leveraging Web Speech Recognition and custom speech synthesis feedback.
 
 ![Avatar Sync & Voice Control](./src/assets/images/nexus_voice_manual_1786736138855.jpg)
 
-#### How to Use Voice Activation:
-1. **Activate Microphone**: Click the large glowing microphone button in the voice HUD or trigger via keyboard shortcut.
-2. **Speak Navigation Command**: Clearly say phrases such as *"Open AI Engine"*, *"Go to Topology Map"*, or *"Launch Smart Inbox"*.
-3. **Real-Time Visualizer**: Observe live soundwave equalizer spectrum feedback as your speech is transcribed and parsed.
-4. **Vocal Confirmation**: The system will audibly confirm the action and immediately switch to the target workspace.
-5. **Persona Selection**: Switch between **Aura** (*Strategic & Calm*), **Nova** (*Dynamic & Precise*), and **Echo** (*Adaptive & Geometric*).
+- **Microphone HUD**: Click the glowing mic or press <kbd>Alt + V</kbd> to initiate voice commands.
+- **Real-Time Soundwave Spectrum**: Instant visualization of audio frequency levels and confidence scoring.
+- **Persona Swapping**: Switch between **Aura** (*Strategic & Calm*), **Nova** (*Dynamic & Precise*), and **Echo** (*Adaptive & Geometric*).
 
 ---
 
-### 3. Unified AI Engine & Neural Architect Studio
-The **AI Engine** and **Neural Architect** provide an integrated environment for prompt experimentation, autonomous code scaffolding, document generation, and predictive business intelligence.
+### Unified AI Engine & Neural Architect Studio
+The **AI Engine** and **Neural Architect** provide an integrated environment for multi-model prompt experimentation, automated code scaffolding, document generation, and predictive business intelligence.
 
 ![AI Engine & Neural Architect](./src/assets/images/nexus_engine_manual_1786736166169.jpg)
 
-#### Core Capabilities:
 - **Model Orchestration**: Multi-model inference testing across Gemini Flash, Pro, and custom neural agents.
-- **Automated Scaffolding**: Generate full-stack architectural blueprints and instant app prototypes.
-- **Prompt Parameter Lab**: Precision sliders for temperature, top-k sampling, frequency penalty, and context retention.
+- **Scaffolding Engine**: Autonomous blueprints and full-stack software component generation.
+- **Parameter Lab**: Precision control over temperature, top-k, and sampling limits.
 
 ---
 
-### 4. Cloud Parameters, App Engine & Topology Map
+### Cloud Parameters, App Engine & Topology Map
 The **Cloud Configuration Hub** and **Topology Map** offer deep visibility into Google Cloud Platform services, App Engine deployment parameters, and dependency graphs.
 
 ![Cloud Infrastructure & Topology Map](./src/assets/images/nexus_cloud_manual_1786736151826.jpg)
 
-#### Infrastructure Controls:
-- **Google Cloud Services Manager**: Enable or disable the App Engine Admin API (`appengine.googleapis.com`), Cloud Source Repositories (`sourcerepo.googleapis.com`), and Cloud SQL Admin API with single-click orchestration.
-- **Terraform & Parameter Vaults**: Review infrastructure as code configurations and secure API key registries.
-- **Interactive Service Topology**: Visual node cluster graphing showing live inter-service connectivity and response times.
+- **GCP Services Manager**: Orchestrate App Engine Admin API, Cloud Source Repositories, and Cloud SQL.
+- **Dependency Graph**: Interactive node cluster graphing depicting live service connectivity and latencies.
+
+---
+
+## Security Assurance & OpenSSF Compliance
+
+Oistarian-NEXUS-ONE follows the **Open Source Security Foundation (OpenSSF)** Best Practices and SLSA Level 3 criteria:
+
+- **OpenSSF Best Practices**: Passing verification for change control, vulnerability disclosure, code reviews, and dependency health. Read the full compliance matrix in [docs/OPENSSF_SECURITY.md](./docs/OPENSSF_SECURITY.md).
+- **Vulnerability Disclosure Policy**: Formal SLA and Coordinated Vulnerability Disclosure (CVD) documented in [SECURITY.md](./SECURITY.md).
+- **Software Bill of Materials (SBOM)**: Automated SPDX and CycloneDX bill-of-materials generation on every production build.
+- **Zero Client Token Exposure**: All external credentials (`GEMINI_API_KEY`, Cloud SQL credentials) remain strictly server-side behind authenticated Express proxies.
+
+---
+
+## ProGuard & R8 Obfuscation Rules
+
+Production Android, hybrid WebView, and mobile distributions are protected using rigorous ProGuard/R8 optimization and obfuscation rules:
+
+- **Rules Configuration**: Located in [`proguard-rules.pro`](./proguard-rules.pro) and [`android/app/proguard-rules.pro`](./android/app/proguard-rules.pro).
+- **5 Optimization Passes**: Aggressive dead-code elimination, bytecode repackaging, and symbol renaming.
+- **Bridge Protection**: Retains `@JavascriptInterface` attributes, reflection signatures, `@Keep` annotations, and WebKit Chrome clients.
+- **Crash Trace Retention**: Preserves `LineNumberTable` and `SourceFile` attributes to enable automated deobfuscation in Google Play Console.
+- **Full Guide**: See [docs/PROGUARD_DOCUMENTATION.md](./docs/PROGUARD_DOCUMENTATION.md).
+
+---
+
+## Google Play Store Symbols & Deobfuscation
+
+Ensure 100% deobfuscated crash traces and native call stacks in **Google Play Console** and **Android Vitals**:
+
+- **Native Debug Symbols**: Unstripped NDK DWARF symbol packaging (`native-debug-symbols.zip`) supporting `arm64-v8a`, `armeabi-v7a`, and `x86_64`.
+- **R8 Mapping File**: Automated `mapping.txt` generation via Gradle `bundleRelease`.
+- **Automated Packager Script**: Execute [`scripts/package-playstore-symbols.sh`](./scripts/package-playstore-symbols.sh) to package symbols, mapping files, and SHA-256 checksums into `build/playstore-symbols/`.
+- **Upload Guide**: Detailed step-by-step instructions for Play Console and Fastlane deployment in [docs/PLAYSTORE_SYMBOLS.md](./docs/PLAYSTORE_SYMBOLS.md).
 
 ---
 
@@ -91,42 +184,11 @@ The **Cloud Configuration Hub** and **Topology Map** offer deep visibility into 
 | `"Open navigation system"` / `"Show GPS map"` | **Navigation System** | Global GPS waypoint routing and telemetry paths |
 | `"Open AR interface"` / `"Switch to AR view"` | **AR Interface** | Launches spatial augmented reality holographic HUD |
 | `"Open Google Sheets"` / `"Go to spreadsheets"` | **Google Sheets Hub** | Real-time Google Workspace sheets reader and telemetry exporter |
+| `"Open collaboration"` / `"Go to comms room"` | **Collaboration Hub** | Opens team chat matrix, spatial memos, and marketplace |
+| `"Open content matrix"` / `"Show media studio"` | **Content Matrix** | Opens multimedia studio, blog writer, and showbiz news |
 | `"Open voice history"` / `"Show voice log"` | **Voice HUD** | Displays real-time voice activation telemetry and success feedback overlay |
 | `"Set avatar to Nova"` / `"Change persona to Echo"` | **Avatar Sync** | Hot-swaps the active neural voice persona |
 | `"Help"` / `"What can I say?"` | **Voice Modal** | Pops up the complete searchable Voice Reference Index |
-
----
-
-## Voice Activation Feedback HUD
-
-- **Trigger Options**: Click the floating **Voice HUD** badge at the bottom-right of the screen, click **Voice HUD** in the top navigation bar, press <kbd>Alt + V</kbd> / <kbd>Ctrl + Shift + V</kbd>, or speak `"Open voice history"`.
-- **Live Telemetry Metrics**: Visualizes voice recognition success rate percentage, total commands logged, recognition latency (ms), and warning counts.
-- **Vocal Audit Trail**: Chronological feed of captured speech transcripts, matched system executions, confidence scores, and target module badges.
-- **Simulation Bar**: Type or click fast test chips to simulate vocal instructions directly.
-- **Export & Audio Controls**: Export your voice journal as JSON, copy individual log entries to the clipboard, and toggle speech synthesis confirmation.
-
----
-
-## Module Index
-
-1. **Command Center (`CustomDashboard`)**: Live metrics, event logs, and status dashboards.
-2. **Unified AI Engine (`AIEngine`)**: Prompt studio, generative inference, and model metrics.
-3. **Avatar Sync & Voice (`AIAssistant`)**: Microphone listener, speech synthesis, and persona customizer.
-4. **Cloud Parameters (`CloudConfig`)**: Google Cloud APIs, App Engine services, and API keys.
-5. **Topology Map (`DependencyMap`)**: Interactive node-graph of connected microservices.
-6. **Smart Inbox (`SmartInbox`)**: Priority-ranked notifications, client requests, and security digests.
-7. **Instant Builder (`InstantBuilder`)**: Generative full-stack application prototyping.
-8. **Deployment Hub (`DeploymentHub`)**: Container health, deployment logs, and rollback triggers.
-9. **Smart Docs & Forms (`SmartDocs`)**: NDA generators, compliance contracts, and billing forms.
-10. **Marketing Suite (`MarketingSuite`)**: Autonomous campaign generation, SEO auditing, and ad analytics.
-11. **Social Control (`SocialControl`)**: Multi-platform post scheduling and engagement streams.
-12. **Sales Intelligence (`SalesIntelligence`)**: Revenue forecasting and CRM deal velocity tracking.
-13. **Navigation System (`NavigationSystem`)**: Live Leaflet interactive maps (Cyber, Satellite, Light, OSM), defined location coordinate inspector with solar cycles & geodetic details, OSRM turn-by-turn route planner, and real-time atmospheric weather radar.
-14. **AR Interface (`ARInterface`)**: Live optical webcam viewfinder, interactive 3D LiDAR point-cloud scanner (1,400+ depth particles), interactive rotating quantum HoloCore with 6DoF parallax odometry, spatial audio synthesizer, and telemetry snapshot exports.
-15. **Collaboration Hub (`CollaborationHub`)**: Real-time multiplayer presence and agent co-working.
-16. **Content Matrix (`ContentHub`)**: Editorial queues, article publication, and multi-channel RSS.
-17. **Google Sheets Hub (`GoogleSheetsHub`)**: Bi-directional Google Sheets API v4 synchronization and table editor.
-18. **App Settings (`AppSettings`)**: System preferences, security permissions, and themes.
 
 ---
 
@@ -149,10 +211,14 @@ npm install
 npm run dev
 ```
 
-### Production Build
+### Production Build & Packaging
 ```bash
 # Compile client SPA and backend bundling
 npm run build
+
+# Package Google Play Store deobfuscation and native crash symbols
+chmod +x scripts/package-playstore-symbols.sh
+./scripts/package-playstore-symbols.sh
 
 # Start production server
 npm start
