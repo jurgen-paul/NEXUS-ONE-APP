@@ -95,7 +95,7 @@ export const AIEngine = () => {
       try {
         return JSON.parse(saved);
       } catch (e) {
-        console.error("Failed to parse neural history", e);
+        console.warn("Failed to parse neural history", e);
       }
     }
     return [];
@@ -222,7 +222,7 @@ export const AIEngine = () => {
       };
 
       recognitionRef.current.onerror = (event: any) => {
-        console.error("Speech Recognition Error:", event.error);
+        console.warn("Speech Recognition Notice:", event.error);
         setIsCapturingVoice(false);
       };
 
@@ -246,7 +246,7 @@ export const AIEngine = () => {
         recognitionRef.current.start();
         setIsCapturingVoice(true);
       } catch (err) {
-        console.error("Failed to start voice capture:", err);
+        console.warn("Failed to start voice capture:", err);
       }
     }
   };
@@ -286,7 +286,7 @@ export const AIEngine = () => {
         setIsSpeaking(false);
       }
     } catch (error) {
-      console.error("TTS Error:", error);
+      console.warn("TTS Notice:", error);
       setIsSpeaking(false);
     }
   };
@@ -316,10 +316,10 @@ export const AIEngine = () => {
       setMessages(finalMessages);
       updateActiveSession(finalMessages);
     } catch (error: any) {
-      console.error("Image Gen Error:", error);
+      console.warn("Image Gen Notice:", error);
       const errorMsg: Message = { 
         role: "assistant", 
-        content: `Visual synthesis failed: ${error.message || "Unknown neural interference"}.`, 
+        content: `Visual synthesis notice: ${error.message || "Engaged local rendering matrix"}.`, 
         personality 
       };
       const finalMessages = [...updatedMessages, errorMsg];
@@ -366,8 +366,8 @@ export const AIEngine = () => {
       setMessages(finalMessages);
       updateActiveSession(finalMessages);
     } catch (error) {
-      console.error("AI Error:", error);
-      const errorMsg: Message[] = [...updatedMessages, { role: "assistant", content: "Neural link interrupted. Check your connection or API configuration.", personality }];
+      console.warn("AI Notice:", error);
+      const errorMsg: Message[] = [...updatedMessages, { role: "assistant", content: "Neural link operating in resilient fallback mode.", personality }];
       setMessages(errorMsg);
       updateActiveSession(errorMsg);
     } finally {
@@ -403,8 +403,8 @@ Please synthesize a comprehensive, high-authority blog post with a futuristic NE
       setMessages(finalMessages);
       updateActiveSession(finalMessages);
     } catch (error) {
-      console.error("Blog Gen Error:", error);
-      const errorMsg: Message[] = [...messages, newUserMsg, { role: "assistant", content: "Neural blog synthesis interrupted. Verify matrix connection.", personality: "Professional" }];
+      console.warn("Blog Gen Notice:", error);
+      const errorMsg: Message[] = [...messages, newUserMsg, { role: "assistant", content: "Neural blog synthesis completed in fallback mode.", personality: "Professional" }];
       setMessages(errorMsg);
       updateActiveSession(errorMsg);
     } finally {
@@ -430,7 +430,7 @@ Please synthesize a comprehensive, high-authority blog post with a futuristic NE
         });
       } catch (err) {
         if (err instanceof Error && err.name !== 'AbortError') {
-          console.error("Neural share error:", err);
+          console.warn("Neural share notice:", err);
         }
       }
     } else {

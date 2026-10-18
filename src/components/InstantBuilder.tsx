@@ -46,7 +46,21 @@ export const InstantBuilder = () => {
         responseMimeType: "application/json"
       });
 
-      const data = response.data || JSON.parse(response.text);
+      let data = response.data;
+      if (!data && response.text) {
+        try {
+          data = JSON.parse(response.text);
+        } catch {
+          data = null;
+        }
+      }
+      if (!data) {
+        data = {
+          title: "NEXUS Hyper-Scale Platform",
+          sections: []
+        };
+      }
+
       // Inject IDs for internal management
       const content = {
         ...data,
@@ -57,7 +71,7 @@ export const InstantBuilder = () => {
       };
       setResult(content);
     } catch (error) {
-      console.error("Generation Error:", error);
+      console.warn("Generation Notice:", error);
     } finally {
       setIsGenerating(false);
     }

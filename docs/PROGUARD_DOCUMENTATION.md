@@ -1,5 +1,10 @@
 # ProGuard & R8 Obfuscation Guide
 
+[![ProGuard / R8 Protected](https://img.shields.io/badge/Bytecode-ProGuard%20%2F%20R8%20Hardened-blue?logo=android)](./PROGUARD_DOCUMENTATION.md)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10423/badge)](https://www.bestpractices.dev/projects/10423)
+[![Play Store Symbols](https://img.shields.io/badge/Play%20Store-Symbols%20%26%20Deobfuscation-success?logo=googleplay)](./PLAYSTORE_SYMBOLS.md)
+[![Security Policy](https://img.shields.io/badge/Security-OpenSSF%20Assurance-green)](../SECURITY.md)
+
 This document details the ProGuard and R8 configuration for **Oistarian-NEXUS-ONE** across Android native wrappers, hybrid WebViews, and Google Play Store distributions.
 
 ---

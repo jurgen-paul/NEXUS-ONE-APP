@@ -497,18 +497,27 @@ export const SocialControl = () => {
         systemInstruction: "You are the NEXUS ONE Content Distiller. You perform hyper-efficient neural summarization for maximum social engagement."
       });
 
-      const data = response.data || JSON.parse(response.text || "[]");
-      if (activeTab === "generator") {
-        setGeneratedIdeas(data);
-      } else {
-        // If in modal, we can pick the best one or just join them
-        const combined = data.map((d: any) => `[${d.platform} Variation]\n${d.caption}\n\n${d.hashtags}`).join("\n\n---\n\n");
-        setNewPostTitle(combined);
-        setShowSummaryInput(false);
-        setLongContentText("");
+      let data = response.data;
+      if (!data && response.text) {
+        try {
+          data = JSON.parse(response.text);
+        } catch {
+          data = [];
+        }
+      }
+      if (Array.isArray(data)) {
+        if (activeTab === "generator") {
+          setGeneratedIdeas(data);
+        } else {
+          // If in modal, we can pick the best one or just join them
+          const combined = data.map((d: any) => `[${d.platform} Variation]\n${d.caption}\n\n${d.hashtags}`).join("\n\n---\n\n");
+          setNewPostTitle(combined);
+          setShowSummaryInput(false);
+          setLongContentText("");
+        }
       }
     } catch (error) {
-      console.error("Neural Summarization Error:", error);
+      console.warn("Neural Summarization Notice:", error);
     } finally {
       setIsSummarizing(false);
     }
@@ -673,7 +682,7 @@ export const SocialControl = () => {
       const text = response.text || "";
       setNewPostTitle(text.trim());
     } catch (error) {
-      console.error("AI Caption Error:", error);
+      console.warn("AI Caption Notice:", error);
     } finally {
       setIsGeneratingCaption(false);
     }
@@ -696,10 +705,17 @@ export const SocialControl = () => {
         systemInstruction: "You are the NEXUS ONE Content Strategist. You generate innovative, high-engagement content ideas in JSON format."
       });
 
-      const ideas = response.data || JSON.parse(response.text || "[]");
+      let ideas = response.data;
+      if (!ideas && response.text) {
+        try {
+          ideas = JSON.parse(response.text);
+        } catch {
+          ideas = [];
+        }
+      }
       setGeneratedIdeas(Array.isArray(ideas) ? ideas : []);
     } catch (error) {
-      console.error("Idea Generation Error:", error);
+      console.warn("Idea Generation Notice:", error);
     } finally {
       setIsGeneratingIdeas(false);
     }

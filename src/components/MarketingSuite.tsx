@@ -148,12 +148,21 @@ export const MarketingSuite = () => {
         responseMimeType: "application/json"
       });
 
-      const data = response.data || JSON.parse(response.text || "{}");
-      setCampaign(data);
-      // Automatically trigger an audit for the new campaign
-      runStrategicAudit(data);
+      let data = response.data;
+      if (!data && response.text) {
+        try {
+          data = JSON.parse(response.text);
+        } catch {
+          data = null;
+        }
+      }
+      if (data) {
+        setCampaign(data);
+        // Automatically trigger an audit for the new campaign
+        runStrategicAudit(data);
+      }
     } catch (error) {
-      console.error("Campaign Generation Error:", error);
+      console.warn("Campaign Generation Notice:", error);
     } finally {
       setIsGenerating(false);
     }
@@ -171,10 +180,17 @@ export const MarketingSuite = () => {
         responseMimeType: "application/json"
       });
 
-      const auditData = response.data || JSON.parse(response.text || "[]");
+      let auditData = response.data;
+      if (!auditData && response.text) {
+        try {
+          auditData = JSON.parse(response.text);
+        } catch {
+          auditData = null;
+        }
+      }
       setAuditResults(Array.isArray(auditData) ? auditData : []);
     } catch (error) {
-      console.error("Audit Generation Error:", error);
+      console.warn("Audit Generation Notice:", error);
     } finally {
       setIsAuditGenerating(false);
     }

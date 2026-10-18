@@ -3,6 +3,9 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10423/badge)](https://www.bestpractices.dev/projects/10423)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/oistars/oistarian-nexus-one/badge)](https://securityscorecards.dev/viewer/?uri=github.com/oistars/oistarian-nexus-one)
 [![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev/)
+[![ProGuard / R8 Protected](https://img.shields.io/badge/Bytecode-ProGuard%20%2F%20R8%20Hardened-blue?logo=android)](./PROGUARD_DOCUMENTATION.md)
+[![Play Store Symbols](https://img.shields.io/badge/Play%20Store-Symbols%20%26%20Deobfuscation-success?logo=googleplay)](./PLAYSTORE_SYMBOLS.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 **Oistarian-NEXUS-ONE** adheres to the [Open Source Security Foundation (OpenSSF)](https://openssf.org/) Best Practices criteria and CII (Core Infrastructure Initiative) standards, providing enterprise-grade supply-chain assurance and continuous vulnerability management.
 

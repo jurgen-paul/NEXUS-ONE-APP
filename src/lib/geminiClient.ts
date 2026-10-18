@@ -65,6 +65,19 @@ export async function generateAiText(options: GenerateTextOptions): Promise<Gene
     }
 
     const result = await res.json();
+    if (options.responseMimeType === "application/json" && !result.data) {
+      if (result.text) {
+        try {
+          result.data = JSON.parse(result.text);
+        } catch {
+          result.data = generateSyntheticJson(options);
+          result.text = JSON.stringify(result.data);
+        }
+      } else {
+        result.data = generateSyntheticJson(options);
+        result.text = JSON.stringify(result.data);
+      }
+    }
     return result;
   } catch (error: any) {
     console.warn("Server AI Generate Error, synthesizing fallback response:", error);

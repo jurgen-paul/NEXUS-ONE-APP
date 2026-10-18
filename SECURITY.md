@@ -2,6 +2,10 @@
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10423/badge)](https://www.bestpractices.dev/projects/10423)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/oistars/oistarian-nexus-one/badge)](https://securityscorecards.dev/viewer/?uri=github.com/oistars/oistarian-nexus-one)
+[![SLSA Level 3](https://slsa.dev/images/gh-badge-level3.svg)](./docs/OPENSSF_SECURITY.md)
+[![ProGuard / R8 Protected](https://img.shields.io/badge/Bytecode-ProGuard%20%2F%20R8%20Hardened-blue?logo=android)](./docs/PROGUARD_DOCUMENTATION.md)
+[![Play Store Symbols](https://img.shields.io/badge/Play%20Store-Symbols%20%26%20Deobfuscation-success?logo=googleplay)](./docs/PLAYSTORE_SYMBOLS.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 The **Oistarian-NEXUS-ONE** project maintains a rigorous, multi-layered security posture adhering to the [Open Source Security Foundation (OpenSSF)](https://openssf.org/) Best Practices criteria and CII standards.
 
